@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Record Audio - HIVE VOX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/dark-theme.css') }}" rel="stylesheet">
+    <style>
+        /* Existing styles */
+        .btn-record {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background-color: #2d2d2d;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+        .btn-record i {
+            font-size: 24px;
+            color: #00bfa5;
+        }
+        .btn-record.recording {
+            background-color: #00bfa5;
+        }
+        .btn-record.recording i {
+            color: white;
+        }
+        .time-display {
+            font-family: monospace;
+            color: #00bfa5;
+        }
+        .recording-status {
+            color: #00bfa5;
+        }
+        
+        /* Hexagon Loader Styles */
+        :root {
+            --bg-primary: #121212;
+            --teal-primary: #00bfa5;
+            --teal-secondary: #00897b;
+            --teal-light: #64ffda;
+            --teal-dark: #005b4f;
+            --particle-color: rgba(100, 255, 218, 0.6);
+        }
+        .loader-container {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 20px auto 0;
+            transform: scale(0.7);
+            display: none;
+        }
+        .loader-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--teal-light);
+            font-weight: 500;
+            letter-spacing: 1px;
+            font-size: 14px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        .hexagon-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            animation: rotate 12s linear infinite;
+        }
+        @keyframes rotate {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        .hexagon {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: center;
+        }
+        .hexagon:nth-child(1) { animation: pulse-scale 3s ease-in-out infinite; }
+        .hexagon:nth-child(2) {
+            transform: scale(0.8);
+            animation: pulse-scale 3s ease-in-out infinite 0.5s;
+        }
+        .hexagon:nth-child(3) {
+            transform: scale(0.6);
+            animation: pulse-scale 3s ease-in-out infinite 1s;
+        }
+        @keyframes pulse-scale {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+        .hexagon svg { width: 100%; height: 100%; }
+        .hexagon-progress {
+            stroke-dasharray: 240;
+            stroke-dashoffset: 240;
+            animation: progress 3s linear infinite;
+        }
+        @keyframes progress {
+            0% { stroke-dashoffset: 240; }
+            100% { stroke-dashoffset: 0; }
+        }
+        .hexagon-outer {
+            filter: drop-shadow(0 0 8px var(--teal-light));
+            opacity: 0.7;
+            animation: glow 4s ease-in-out infinite;
+        }
+        @keyframes glow {
+            0% { filter: drop-shadow(0 0 5px var(--teal-light)); opacity: 0.5; }
+            50% { filter: drop-shadow(0 0 15px var(--teal-light)); opacity: 0.8; }
+            100% { filter: drop-shadow(0 0 5px var(--teal-light)); opacity: 0.5; }
+        }
+        
+        /* Add timer container styles */
+        .timer-container {
+            position: relative;
+            margin: 20px auto;
+            text-align: center;
+        }
+        
+        #timer {
+            position: relative;
+            z-index: 2;
+        }
+        
+        #equalizer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">HIVE VOX <span class="version">v0.2</span></a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/upload">Upload</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/record">Record</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 text-center">
+                <h2 class="mb-4">Record Audio</h2>
+                <div class="form-check form-switch mb-3 d-flex align-items-center justify-content-center">
+                    <input class="form-check-input me-2" type="checkbox" id="systemAudioToggle">
+                    <label class="form-check-label text-muted" for="systemAudioToggle">
+                        <i class="bi bi-speaker-fill me-1"></i>Include System Audio
+                    </label>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <div id="controls">
+                            <button id="recordButton" class="btn btn-record"><i class="bi bi-mic-fill"></i></button>
+                            <button id="stopButton" class="btn btn-record" style="display: none;"><i class="bi bi-stop-fill"></i></button>
+                        </div>
+                        <div id="formats" class="mt-3 text-muted">Format: WebM</div>
+                        <div class="timer-container">
+                            <div id="timer" class="mt-3 h4 time-display">00:00</div>
+                            <div id="equalizer"></div>
+                        </div>
+                        <div id="status" class="mt-3 recording-status"></div>
+                        
+                        <!-- Hexagon Loader -->
+                        <div class="loader-container" id="hexagonLoader">
+                            <div class="hexagon-container">
+                                <div class="hexagon hexagon-outer">
+                                    <svg viewBox="0 0 100 100">
+                                        <polygon points="50,3 97,26.5 97,73.5 50,97 3,73.5 3,26.5" fill="none" stroke="#00bfa5" stroke-width="2"></polygon>
+                                    </svg>
+                                </div>
+                                <div class="hexagon">
+                                    <svg viewBox="0 0 100 100">
+                                        <polygon points="50,3 97,26.5 97,73.5 50,97 3,73.5 3,26.5" fill="none" stroke="#00bfa5" stroke-width="1.5"></polygon>
+                                        <polygon points="50,15 85,32 85,68 50,85 15,68 15,32" fill="none" stroke="#64ffda" stroke-width="1" stroke-dasharray="2,2"></polygon>
+                                    </svg>
+                                </div>
+                                <div class="hexagon">
+                                    <svg viewBox="0 0 100 100">
+                                        <polygon class="hexagon-progress" points="50,30 75,42.5 75,67.5 50,80 25,67.5 25,42.5" fill="none" stroke="#64ffda" stroke-width="2"></polygon>
+                                        <circle cx="50" cy="50" r="8" fill="#00bfa5"></circle>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="loader-text">Processing</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/equalizer-component.js') }}"></script>
+    <script>
+        let mediaRecorder;
+        let recordedChunks = [];
+        let timerInterval;
+        let startTime;
+        let equalizer;
+        let audioContext;
+        let audioDestination;
+
+        document.getElementById('recordButton').addEventListener('click', startRecording);
+        document.getElementById('stopButton').addEventListener('click', stopRecording);
+
+        // Initialize equalizer
+        document.addEventListener('DOMContentLoaded', function() {
+            equalizer = new EqualizerAnimation({
+                container: 'equalizer',
+                barCount: 20,
+                minHeight: 2,
+                maxHeight: 20,
+                barWidth: 2,
+                barSpacing: 1,
+                color: '#00bfa5',
+                animationDuration: 10
+            });
+        });
+
+        function updateTimer() {
+            const now = Date.now();
+            const diff = now - startTime;
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            document.getElementById('timer').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        async function startRecording() {
+            try {
+                recordedChunks = [];
+                const includeSystemAudio = document.getElementById('systemAudioToggle').checked;
+                
+                // Get microphone stream first
+                const micStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                if (includeSystemAudio) {
+                    try {
+                        // Request system audio with specific constraints
+                        const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                            audio: {
+                                displaySurface: "browser",
+                                echoCancellation: true,
+                                noiseSuppression: true,
+                                sampleRate: 44100
+                            },
+                            video: {
+                                displaySurface: "browser",
+                                width: 1,
+                                height: 1,
+                                frameRate: 1
+                            }
+                        });
+
+                        // Create audio context for mixing
+                        audioContext = new AudioContext();
+                        
+                        // Create sources for both streams
+                        const micSource = audioContext.createMediaStreamSource(micStream);
+                        const sysSource = audioContext.createMediaStreamSource(displayStream);
+                        
+                        // Create a gain node for each source to control volume
+                        const micGain = audioContext.createGain();
+                        const sysGain = audioContext.createGain();
+                        
+                        // Set volumes (adjust these values as needed)
+                        micGain.gain.value = 0.7;  // Microphone at 70% volume
+                        sysGain.gain.value = 0.3;  // System audio at 30% volume
+                        
+                        // Connect sources to gain nodes
+                        micSource.connect(micGain);
+                        sysSource.connect(sysGain);
+                        
+                        // Create destination for mixed audio
+                        const dest = audioContext.createMediaStreamDestination();
+                        
+                        // Connect both gain nodes to destination
+                        micGain.connect(dest);
+                        sysGain.connect(dest);
+                        
+                        // Create MediaRecorder with mixed stream
+                        mediaRecorder = new MediaRecorder(dest.stream, {
+                            mimeType: 'audio/webm',
+                            audioBitsPerSecond: 128000
+                        });
+
+                        // Clean up function for display stream
+                        displayStream.getVideoTracks().forEach(track => track.stop());
+                        
+                        // Store streams for cleanup
+                        mediaRecorder._streams = [micStream, displayStream];
+                    } catch (err) {
+                        console.warn('System audio capture failed:', err);
+                        // Fallback to microphone only
+                        mediaRecorder = new MediaRecorder(micStream, {
+                            mimeType: 'audio/webm',
+                            audioBitsPerSecond: 128000
+                        });
+                        mediaRecorder._streams = [micStream];
+                        alert('System audio capture failed. Recording with microphone only. Make sure to select a window/tab and enable "Share audio" in the prompt.');
+                    }
+                } else {
+                    // Microphone only recording
+                    mediaRecorder = new MediaRecorder(micStream, {
+                        mimeType: 'audio/webm',
+                        audioBitsPerSecond: 128000
+                    });
+                    mediaRecorder._streams = [micStream];
+                }
+
+                mediaRecorder.addEventListener('dataavailable', function(e) {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                });
+
+                mediaRecorder.addEventListener('stop', function() {
+                    // Clean up all streams
+                    if (mediaRecorder._streams) {
+                        mediaRecorder._streams.forEach(stream => {
+                            stream.getTracks().forEach(track => track.stop());
+                        });
+                    }
+                    if (audioContext) {
+                        audioContext.close();
+                    }
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    uploadRecording(blob);
+                });
+
+                mediaRecorder.start(1000); // Capture in 1-second chunks
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+
+                document.getElementById('recordButton').style.display = 'none';
+                document.getElementById('stopButton').style.display = 'flex';
+                document.getElementById('stopButton').classList.add('recording');
+                document.getElementById('status').textContent = 'Recording...';
+                document.getElementById('systemAudioToggle').disabled = true;
+                
+                // Start equalizer animation
+                equalizer.start();
+            } catch (err) {
+                console.error('Error starting recording:', err);
+                alert('Could not start recording: ' + err.message);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            clearInterval(timerInterval);
+            
+            document.getElementById('recordButton').style.display = 'flex';
+            document.getElementById('stopButton').style.display = 'none';
+            document.getElementById('stopButton').classList.remove('recording');
+            document.getElementById('status').textContent = 'Processing...';
+            document.getElementById('status').classList.add('text-warning');
+            document.getElementById('systemAudioToggle').disabled = false;
+            
+            // Stop equalizer animation
+            equalizer.stop();
+        }
+
+        async function uploadRecording(blob) {
+            const formData = new FormData();
+            formData.append('file', blob, 'recording.webm');
+            
+            document.getElementById('status').textContent = 'Uploading...';
+            document.getElementById('hexagonLoader').style.display = 'block';
+            
+            fetch('/upload_recording', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('status').textContent = 'Processing...';
+                    setTimeout(() => {
+                        window.location.href = `/conversation/${data.conversation_id}`;
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            })
+            .catch(error => {
+                document.getElementById('status').textContent = `Error: ${error.message}`;
+                document.getElementById('hexagonLoader').style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html> 
