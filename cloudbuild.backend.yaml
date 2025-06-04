@@ -1,0 +1,26 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t',
+      'us-central1-docker.pkg.dev/$PROJECT_ID/hive-mind-repo/hive-mind-backend:$SHORT_SHA',
+      '.'
+    ]
+    dir: 'backend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push',
+      'us-central1-docker.pkg.dev/$PROJECT_ID/hive-mind-repo/hive-mind-backend:$SHORT_SHA'
+    ]
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: [
+      'run', 'deploy', 'hive-mind-backend',
+      '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/hive-mind-repo/hive-mind-backend:$SHORT_SHA',
+      '--region', 'us-central1',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--port', '8000'
+    ]

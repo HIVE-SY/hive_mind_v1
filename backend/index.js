@@ -25,7 +25,9 @@ app.use(express.static(path.join(__dirname, '../frontend/static')));
 
 // Enable CORS for frontend dev server
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:8000'],
+  origin: ['http://localhost:5173', 'http://localhost:8000', 
+    'https://hive-mind-frontend-259028418114.us-central1.run.app'
+  ],
   credentials: true
 }));
 
