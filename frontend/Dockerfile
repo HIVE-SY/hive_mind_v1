@@ -14,6 +14,8 @@ COPY . .
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
+RUN echo "VITE_API_BASE_URL is $VITE_API_BASE_URL"
+RUN echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" > .env.production
 # Build the app
 RUN npm run build
 

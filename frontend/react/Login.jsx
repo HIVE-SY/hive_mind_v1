@@ -1,12 +1,14 @@
 import { useState } from "react";
 import './login.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 export default function Login() {
   const [message, setMessage] = useState("");
 
   const handleLogin = async (e) => {
+    console.log("🔥 API URL:", import.meta.env.VITE_API_BASE_URL);
+
     e.preventDefault();
     const email = e.target.email.value;
 
