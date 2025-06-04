@@ -10,7 +10,7 @@ backend/node_modules/
 # ------------------------
 
 build/
-frontend/dist/
+
 frontend/.vite/
 backend/dist/
 
