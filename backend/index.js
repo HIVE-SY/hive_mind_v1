@@ -18,6 +18,7 @@ const magicLinkRouter = require('./api/auth/magicLink');
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+
 // Middleware
 app.use(cookieParser());
 app.use(express.json());
