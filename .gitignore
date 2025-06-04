@@ -12,7 +12,7 @@ backend/node_modules/
 build/
 
 frontend/.vite/
-backend/dist/
+
 
 # ------------------------
 # Puppeteer profiles
