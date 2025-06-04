@@ -21,5 +21,6 @@ steps:
       '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/hive-mind-repo/hive-mind-frontend:$SHORT_SHA',
       '--region', 'us-central1',
       '--platform', 'managed',
-      '--allow-unauthenticated'
+      '--allow-unauthenticated',
+      '--port', '80'
     ]
