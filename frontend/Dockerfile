@@ -32,6 +32,6 @@ RUN adduser -D -H -u 101 -s /sbin/nologin nginx || true
 # Permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html
 
-USER nginx
+# USER nginx
 EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]
