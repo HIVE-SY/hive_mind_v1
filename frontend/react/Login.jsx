@@ -22,7 +22,7 @@ export default function Login() {
       if (res.ok) {
         setMessage("✅ Magic link sent to your email!");
       } else {
-        setMessage(`❌ Error: ${data.error || "Something went wrong."}`);
+        setMessage(`❌ Error: ${data.error || "Something went wrong"}`);
       }
     } catch (err) {
       console.error("Login error:", err);
