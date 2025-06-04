@@ -47,7 +47,7 @@ app.use(session({
 
 // Set up EJS as the view engine
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, '../frontend/templates'));
+app.set('views', path.join(__dirname, 'templates'));
 
 
 

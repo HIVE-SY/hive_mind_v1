@@ -24,7 +24,7 @@ COPY . .
 
 # Preload Puppeteer profile if used
 COPY puppeteer/bot-profile /app/puppeteer/bot-profile
-
+COPY ../frontend/templates ./templates
 # Puppeteer environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
