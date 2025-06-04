@@ -1,7 +1,8 @@
 import { useState } from "react";
 import './login.css';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+const API_BASE_URL = 'https://hive-mind-app-259028418114.us-central1.run.app';
+
 
 export default function Login() {
   const [message, setMessage] = useState("");
