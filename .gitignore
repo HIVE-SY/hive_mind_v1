@@ -8,7 +8,7 @@ backend/node_modules/
 # ------------------------
 # Build outputs
 # ------------------------
-dist/
+
 build/
 frontend/dist/
 frontend/.vite/
