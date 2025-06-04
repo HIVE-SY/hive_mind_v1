@@ -3,17 +3,17 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Inject env var into .env.production if it exists
-ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-# Copy only package files first
+# Copy package files first
 COPY package*.json ./
 RUN npm ci
 
-
-
 # Copy everything else (after .dockerignore has excluded junk)
 COPY . .
+
+# Set build-time environment variable
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 # Build the app
 RUN npm run build
 
