@@ -7,8 +7,6 @@ export default function Login() {
   const [message, setMessage] = useState("");
 
   const handleLogin = async (e) => {
-    console.log("🔥 API URL:", import.meta.env.VITE_API_BASE_URL);
-
     e.preventDefault();
     const email = e.target.email.value;
 
