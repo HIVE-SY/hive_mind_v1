@@ -14,12 +14,7 @@ build/
 frontend/.vite/
 
 
-# ------------------------
-# Puppeteer profiles
-# ------------------------
-puppeteer/
-puppeteer/bot-profile/
-bot-profile/
+
 
 # ------------------------
 # Environment variables
