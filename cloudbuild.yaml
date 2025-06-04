@@ -4,6 +4,7 @@ steps:
       'build',
       '-t',
       'us-central1-docker.pkg.dev/$PROJECT_ID/hive-mind-repo/hive-mind-frontend:$SHORT_SHA',
+      '--build-arg', 'VITE_API_BASE_URL=${_VITE_API_BASE_URL}',
       '.'
     ]
     dir: 'frontend'
