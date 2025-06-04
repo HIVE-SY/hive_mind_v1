@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 8000;
 // Middleware
 app.use(cookieParser());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend/static')));
+app.use(express.static(path.join(__dirname, 'static')));
 
 // Enable CORS for frontend dev server
 app.use(cors({

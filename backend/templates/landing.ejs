@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Hive Mind VOX - AI-powered meeting transcription that builds your organization's collective intelligence network.">
+  <title>Hive Mind VOX | Intelligent Meeting Transcription</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --teal-accent: #00BFA6;
+      --teal-light: rgba(0, 191, 166, 0.1);
+      --teal-dark: #009E8A;
+      --dark-bg: #111111;
+      --darker-bg: #0a0a0a;
+      --panel-bg: rgba(25, 25, 25, 0.8);
+      --panel-bg-hover: rgba(35, 35, 35, 0.9);
+      --text-color: rgba(255, 255, 255, 0.9);
+      --text-secondary: rgba(255, 255, 255, 0.6);
+      --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      background-color: var(--dark-bg);
+      color: var(--text-color);
+      overflow-x: hidden;
+      line-height: 1.6;
+      font-weight: 400;
+    }
+    
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+    
+    .background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      background: 
+        radial-gradient(circle at 70% 35%, rgba(0, 191, 166, 0.05) 0%, rgba(17, 17, 17, 0) 50%),
+        radial-gradient(circle at 30% 65%, rgba(0, 191, 166, 0.03) 0%, rgba(17, 17, 17, 0) 50%);
+    }
+    
+    .flow-lines {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      opacity: 0.07;
+      background-image: 
+        repeating-linear-gradient(90deg, var(--teal-accent) 0%, var(--teal-accent) 1px, transparent 1px, transparent 30px),
+        repeating-linear-gradient(180deg, var(--teal-accent) 0%, var(--teal-accent) 1px, transparent 1px, transparent 30px);
+      background-size: 30px 30px;
+      filter: blur(0.5px);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      width: 100%;
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+    
+    header {
+      padding: 30px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--teal-accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      background-color: rgba(0, 191, 166, 0.05);
+    }
+    
+    .logo-icon::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 3px;
+      background-color: var(--teal-accent);
+      box-shadow: 0 0 10px var(--teal-accent);
+      animation: pulse 3s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { top: 70%; opacity: 0.7; }
+      50% { top: 20%; opacity: 1; }
+    }
+    
+    .logo-text {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text-color);
+    }
+    
+    .logo-text span {
+      color: var(--teal-accent);
+    }
+    
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 60px 0 100px;
+      min-height: 80vh;
+      justify-content: center;
+      width: 100%;
+    }
+    
+    .hero h1 {
+      font-size: 4rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin: 0 auto 20px;
+      max-width: 800px;
+      background: linear-gradient(to right, var(--text-color) 0%, rgba(255, 255, 255, 0.8) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-align: center;
+    }
+    
+    .hero h1 span {
+      color: var(--teal-accent);
+      position: relative;
+      -webkit-text-fill-color: var(--teal-accent);
+    }
+    
+    .hero h1 span::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: var(--teal-accent);
+      box-shadow: 0 0 8px var(--teal-accent);
+    }
+    
+    .hero p {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin: 0 auto 40px;
+      max-width: 700px;
+      text-align: center;
+    }
+    
+    .cta-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background-color: var(--teal-accent);
+      color: var(--dark-bg);
+      padding: 16px 32px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      box-shadow: 0 4px 12px rgba(0, 191, 166, 0.2);
+      border: none;
+      font-size: 18px;
+      margin: 0 10px 20px;
+    }
+    
+    .cta-button:hover {
+      transform: translateY(-3px);
+      background-color: var(--teal-dark);
+      box-shadow: 0 6px 20px rgba(0, 191, 166, 0.3);
+    }
+    
+    .cta-button-secondary {
+      background-color: transparent;
+      border: 1px solid var(--teal-accent);
+      color: var(--teal-accent);
+    }
+    
+    .cta-button-secondary:hover {
+      background-color: rgba(0, 191, 166, 0.1);
+      color: var(--teal-accent);
+    }
+    
+    .cta-button svg {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .hero-buttons {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 50px;
+    }
+    
+    .floating-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 30px;
+      margin: 20px auto 40px;
+      width: 100%;
+      max-width: 1000px;
+    }
+    
+    .floating-badge {
+      background-color: rgba(0, 191, 166, 0.1);
+      border: 1px solid rgba(0, 191, 166, 0.3);
+      padding: 10px 20px;
+      border-radius: 30px;
+      color: var(--teal-accent);
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(4px);
+    }
+    
+    .floating-badge svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .vox-animation {
+      width: 100%;
+      max-width: 800px;
+      height: 180px;
+      margin: 0 auto 60px;
+      position: relative;
+      background: var(--panel-bg);
+      border-radius: 15px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .waveform {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 80%;
+      height: 60px;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 20px;
+    }
+    
+    .wave-bar {
+      width: 3px;
+      background-color: var(--teal-accent);
+      box-shadow: 0 0 8px var(--teal-accent);
+      border-radius: 3px;
+      opacity: 0.7;
+      animation: wave 1.5s ease-in-out infinite;
+      animation-delay: calc(var(--i) * 0.1s);
+    }
+    
+    @keyframes wave {
+      0%, 100% { height: 10px; }
+      50% { height: 60px; }
+    }
+    
+    .key-features {
+      padding: 100px 0;
+      background-color: var(--darker-bg);
+    }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    
+    .section-title {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+    
+    .section-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 700px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 30px;
+      margin-top: 60px;
+    }
+    
+    .feature-card {
+      background: var(--panel-bg);
+      border-radius: 15px;
+      padding: 30px;
+      transition: var(--transition-smooth);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      background: var(--panel-bg-hover);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--teal-accent), transparent);
+      opacity: 0;
+      transition: var(--transition-smooth);
+    }
+    
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+    
+    .feature-icon {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--teal-light);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      transition: var(--transition-smooth);
+    }
+    
+    .feature-card:hover .feature-icon {
+      background: rgba(0, 191, 166, 0.2);
+      transform: scale(1.05);
+    }
+    
+    .feature-icon svg {
+      width: 30px;
+      height: 30px;
+      color: var(--teal-accent);
+    }
+    
+    .feature-title {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    
+    .feature-description {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      flex-grow: 1;
+    }
+    
+    .how-it-works {
+      padding: 100px 0;
+    }
+    
+    .steps-container {
+      max-width: 800px;
+      margin: 60px auto 0;
+      position: relative;
+    }
+    
+    .steps-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 20px;
+      width: 2px;
+      background-color: rgba(0, 191, 166, 0.3);
+    }
+    
+    .step {
+      display: flex;
+      margin-bottom: 50px;
+      position: relative;
+    }
+    
+    .step:last-child {
+      margin-bottom: 0;
+    }
+    
+    .step-number {
+      width: 40px;
+      height: 40px;
+      background-color: var(--teal-accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--dark-bg);
+      margin-right: 30px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+    }
+    
+    .step-content {
+      padding-top: 5px;
+    }
+    
+    .step-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    
+    .step-description {
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+    
+    .benefits {
+      padding: 100px 0;
+      background-color: var(--darker-bg);
+    }
+    
+    .benefits-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 30px;
+      margin-top: 60px;
+    }
+    
+    .benefit-card {
+      flex: 1;
+      min-width: 300px;
+      background: var(--panel-bg);
+      border-radius: 15px;
+      padding: 30px;
+      display: flex;
+      gap: 20px;
+      transition: var(--transition-smooth);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .benefit-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      background: var(--panel-bg-hover);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .benefit-icon {
+      width: 50px;
+      height: 50px;
+      flex-shrink: 0;
+      background: var(--teal-light);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition-smooth);
+    }
+    
+    .benefit-card:hover .benefit-icon {
+      background: rgba(0, 191, 166, 0.2);
+      transform: translateY(-3px);
+    }
+    
+    .benefit-icon svg {
+      width: 25px;
+      height: 25px;
+      color: var(--teal-accent);
+    }
+    
+    .benefit-content h3 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    
+    .benefit-content p {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }
+    
+    .demo-section {
+      padding: 100px 0;
+      text-align: center;
+      position: relative;
+    }
+    
+    .demo-video {
+      max-width: 800px;
+      margin: 60px auto 0;
+      width: 100%;
+      background: var(--panel-bg);
+      border-radius: 15px;
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 16 / 9;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .play-button {
+      width: 80px;
+      height: 80px;
+      background-color: var(--teal-accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      box-shadow: 0 0 20px rgba(0, 191, 166, 0.3);
+    }
+    
+    .play-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px rgba(0, 191, 166, 0.5);
+    }
+    
+    .play-button svg {
+      width: 30px;
+      height: 30px;
+      color: var(--dark-bg);
+      margin-left: 5px;
+    }
+    
+    .video-caption {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    
+    .cta-section {
+      padding: 100px 0;
+      background-color: var(--darker-bg);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .cta-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(0, 191, 166, 0.1) 0%, rgba(10, 10, 10, 0) 70%);
+      z-index: -1;
+    }
+    
+    .cta-title {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      font-weight: 700;
+    }
+    
+    .cta-description {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 700px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+    
+    .signup-form {
+      max-width: 500px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+    }
+    
+    .signup-input {
+      flex-grow: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 15px;
+      font-size: 16px;
+      color: var(--text-color);
+      transition: var(--transition-smooth);
+    }
+    
+    .signup-input:focus {
+      outline: none;
+      border-color: var(--teal-accent);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    
+    .signup-button {
+      background-color: var(--teal-accent);
+      color: var(--dark-bg);
+      border: none;
+      border-radius: 8px;
+      padding: 15px 25px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+    
+    .signup-button:hover {
+      background-color: var(--teal-dark);
+      transform: translateY(-2px);
+    }
+    
+    footer {
+      padding: 50px 0;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    
+    .footer-content {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      text-decoration: none;
+    }
+    
+    .footer-logo-icon {
+      width: 30px;
+      height: 30px;
+      border: 2px solid var(--teal-accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .footer-logo-icon::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      background-color: var(--teal-accent);
+      box-shadow: 0 0 10px var(--teal-accent);
+      top: 50%;
+    }
+    
+    .footer-logo-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-color);
+    }
+    
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: var(--transition-smooth);
+    }
+    
+    .footer-links a:hover {
+      color: var(--teal-accent);
+    }
+    
+    .social-links {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin: 20px 0;
+    }
+    
+    .social-link {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+      transition: var(--transition-smooth);
+      color: var(--text-color);
+    }
+    
+    .social-link:hover {
+      background: var(--teal-accent);
+      transform: translateY(-3px);
+    }
+    
+    .social-link svg {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .copyright {
+      margin-top: 20px;
+    }
+    
+    @media (max-width: 1024px) {
+      .hero h1 {
+        font-size: 3rem;
+      }
+      
+      .vox-animation {
+        height: 150px;
+      }
+      
+      .features-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 2.5rem;
+      }
+      
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .signup-form {
+        flex-direction: column;
+      }
+      
+      .step-number {
+        width: 35px;
+        height: 35px;
+      }
+      
+      .benefit-card {
+        flex-direction: column;
+      }
+      
+      .benefit-icon {
+        margin-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="background"></div>
+  <div class="flow-lines"></div>
+  
+  <header>
+    <div class="container" style="display: flex; justify-content: space-between; align-items: center;">
+      <a href="#" class="logo" aria-label="Hive Mind VOX homepage">
+        <div class="logo-icon" aria-hidden="true"></div>
+        <div class="logo-text">Hive Mind <span>VOX</span></div>
+      </a>
+      <a href="<%= process.env.FRONTEND_URL || 'http://localhost:5173/login' %>"
+         class="cta-button cta-button-secondary" style="margin-left: auto;">Login</a>
+    </div>
+  </header>
+  
+  <section class="hero">
+    <div class="container">
+      <h1><div>Transform</div> <div><span>Conversations</span> into</div> <div>Collective Intelligence</div></h1>
+      <p>Hive Mind VOX is an AI-powered meeting assistant that transcribes discussions, extracts key insights, and builds a shared knowledge network for your organization — creating an interconnected mycelium of institutional wisdom.</p>
+      
+      <div class="floating-badges">
+        <div class="floating-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 16v-4"></path>
+            <path d="M12 8h.01"></path>
+          </svg>
+          Real-time Transcription
+        </div>
+        <div class="floating-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
+          </svg>
+          Mycelium Knowledge Network
+        </div>
+        <div class="floating-badge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+          Privacy-Focused
+        </div>
+      </div>
+      
+      <div class="hero-buttons">
+        <a href="/dashboard" class="cta-button">
+          Try for Free
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"></path>
+            <path d="M12 5l7 7-7 7"></path>
+          </svg>
+        </a>
+        <a href="#demo" class="cta-button cta-button-secondary">
+          Watch Demo
+        </a>
+      </div>
+      
+      <div class="vox-animation">
+        <div class="waveform">
+          <!-- Audio waveform bars generated by JavaScript -->
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section class="key-features">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Key Features</h2>
+        <p class="section-subtitle">Hive Mind VOX combines advanced AI with mycelium network principles to create a revolutionary meeting assistant that grows your organization's collective intelligence.</p>
+      </div>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Smart Transcription</h3>
+          <p class="feature-description">Advanced AI accurately transcribes conversations while distinguishing between speakers, capturing tone, and filtering out background noise — all in real-time with 99.4% accuracy.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Knowledge Extraction</h3>
+          <p class="feature-description">Automatically identifies key insights, decisions, action items, and important concepts from your conversations, transforming unstructured discussions into organized knowledge.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Mycelium Network</h3>
+          <p class="feature-description">Creates intelligent connections between related concepts across all your meetings, building an interconnected knowledge network that reveals patterns, opportunities and insights.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Selective Activation</h3>
+          <p class="feature-description">Choose what VOX listens to with simple voice commands or tap controls. Start or pause transcription anytime, ensuring you only capture what matters while maintaining privacy.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Intelligent Summaries</h3>
+          <p class="feature-description">Automatically generates concise summaries of meetings with key points, decisions, and action items — available immediately after your meeting concludes.</p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <h3 class="feature-title">Privacy & Security</h3>
+          <p class="feature-description">Enterprise-grade security with end-to-end encryption, optional on-premises deployment, and granular access controls to protect sensitive information.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section class="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">How It Works</h2>
+        <p class="section-subtitle">Hive Mind VOX integrates seamlessly into your meetings, working quietly in the background to build your organization's collective intelligence.</p>
+      </div>
+      
+      <div class="steps-container">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3 class="step-title">Activate VOX</h3>
+            <p class="step-description">Start VOX at the beginning of your meeting through voice command ("Hey VOX, start listening") or the simple tap interface. VOX works with virtual meetings or in-person gatherings using your device's microphone.</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3 class="step-title">Real-time Transcription</h3>
+            <p class="step-description">VOX listens and transcribes the conversation in real-time, distinguishing between speakers and capturing the nuances of the discussion. You can view the live transcript during the meeting.</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3 class="step-title">Knowledge Extraction</h3>
+            <p class="step-description">The AI analyzes the conversation, identifying key insights, decisions, action items, and important concepts. VOX understands context and extracts meaningful information, not just keywords.</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3 class="step-title">Network Connection</h3>
+            <p class="step-description">VOX connects new information with existing knowledge in your organization's mycelium network, creating intelligent links between related concepts across meetings, departments, and projects.</p>
+          </div>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">5</div>
+          <div class="step-content">
+            <h3 class="step-title">Access & Explore</h3>
+            <p class="step-description">Immediately after the meeting, access the complete transcript, summary, and knowledge network through VOX's intuitive interface. Search, filter, and explore connections to discover new insights.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section class="benefits">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Benefits</h2>
+        <p class="section-subtitle">Discover how Hive Mind VOX transforms your organization through the power of collective intelligence.</p>
+      </div>
+      
+      <div class="benefits-container">
+        <div class="benefit-card">
+          <div class="benefit-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="benefit-content">
+            <h3>Save Time & Resources</h3>
+            <p>Eliminate manual note-taking and reduce meeting time by 30%. Instantly access complete records without the effort of documentation.</p>
+          </div>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div class="benefit-content">
+            <h3>Accelerate Innovation</h3>
+            <p>Discover connections between seemingly unrelated ideas and expertise. VOX reveals patterns and opportunities that would otherwise remain hidden.</p>
+          </div>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <div class="benefit-content">
+            <h3>Enhance Collaboration</h3>
+            <p>Break down silos by connecting insights across teams and departments. Build a shared understanding that transcends organizational boundaries.</p>
+          </div>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <div class="benefit-content">
+            <h3>Preserve Institutional Knowledge</h3>
+            <p>Capture and retain critical insights regardless of employee turnover. Build an ever-growing knowledge asset that strengthens over time.</p>
+          </div>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <div class="benefit-content">
+            <h3>Improve Decision-Making</h3>
+            <p>Access complete context and historical insights whenever you need them. Make better-informed decisions with the full power of your organization's collective intelligence.</p>
+          </div>
+        </div>
+        
+        <div class="benefit-card">
+          <div class="benefit-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+            </svg>
+          </div>
+          <div class="benefit-content">
+            <h3>Scale Expertise</h3>
+            <p>Multiply the impact of your organization's expertise by making knowledge accessible to everyone. Turn individual insights into collective wisdom.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section id="demo" class="demo-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">See VOX in Action</h2>
+        <p class="section-subtitle">Watch how Hive Mind VOX transforms meetings and builds your organization's collective intelligence network.</p>
+      </div>
+      
+      <div class="demo-video">
+        <div class="video-placeholder">
+          <div class="play-button">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </div>
+          <div class="video-caption">Hive Mind VOX: Building Collective Intelligence</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <section id="signup" class="cta-section">
+    <div class="cta-bg"></div>
+    <div class="container">
+      <h2 class="cta-title">Start Building Your Hive Mind Network</h2>
+      <p class="cta-description">Join forward-thinking organizations already using VOX to transform their collective intelligence. Try it free for 14 days with no commitment.</p>
+      
+      <div class="cta-buttons">
+        <a href="/dashboard" class="cta-button">
+          Start Free Trial
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14"></path>
+            <path d="M12 5l7 7-7 7"></path>
+          </svg>
+        </a>
+        <a href="#" class="cta-button cta-button-secondary">Schedule a Demo</a>
+      </div>
+      
+      <div class="signup-form">
+        <input type="email" class="signup-input" placeholder="Enter your work email" aria-label="Email for signup">
+        <button class="signup-button">Get Started</button>
+      </div>
+    </div>
+  </section>
+  
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <a href="#" class="footer-logo" aria-label="Hive Mind VOX homepage">
+          <div class="footer-logo-icon" aria-hidden="true"></div>
+          <div class="footer-logo-text">Hive Mind VOX</div>
+        </a>
+        
+        <div class="social-links">
+          <a href="#" class="social-link" aria-label="LinkedIn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+              <rect x="2" y="9" width="4" height="12"></rect>
+              <circle cx="4" cy="4" r="2"></circle>
+            </svg>
+          </a>
+          <a href="#" class="social-link" aria-label="Twitter">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path>
+            </svg>
+          </a>
+          <a href="#" class="social-link" aria-label="Instagram">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+        </div>
+        
+        <div class="footer-links">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="#">Contact Us</a>
+        </div>
+        
+        <div class="copyright">© 2025 Hive Mind VOX. All rights reserved.</div>
+      </div>
+    </div>
+  </footer>
+  
+  <script>
+    // Create audio waveform visualization
+    document.addEventListener('DOMContentLoaded', function() {
+      const waveform = document.querySelector('.waveform');
+      if (!waveform) return;
+      
+      // Create bars for waveform
+      const barCount = 40;
+      for (let i = 0; i < barCount; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'wave-bar';
+        bar.style.setProperty('--i', i / 4);
+        bar.style.height = `${5 + Math.random() * 40}px`;
+        waveform.appendChild(bar);
+      }
+      
+      // Animate bars to simulate audio activity
+      setInterval(() => {
+        const bars = document.querySelectorAll('.wave-bar');
+        bars.forEach(bar => {
+          bar.style.height = `${5 + Math.random() * 40}px`;
+        });
+      }, 500);
+    });
+    
+    // Play button click handler
+    document.addEventListener('DOMContentLoaded', function() {
+      const playButton = document.querySelector('.play-button');
+      if (!playButton) return;
+      
+      playButton.addEventListener('click', function() {
+        // In a real implementation, this would play the demo video
+        // For now, just add a visual feedback
+        playButton.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          playButton.style.transform = '';
+        }, 200);
+        
+        alert('In a real implementation, this would play the demo video');
+      });
+    });
+  </script>
+</body>
+</html>

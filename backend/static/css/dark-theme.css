@@ -1,0 +1,527 @@
+:root {
+    --bg-dark: #121212;
+    --bg-card: #1e1e1e;
+    --bg-card-hover: #2d2d2d;
+    --bg-secondary: #2a2a2a;
+    --border-color: #444;
+    --text-primary: #ffffff;
+    --text-secondary: #e0e0e0;
+    --text-muted: #b0b0b0;
+    --accent-teal: #00bfa5;
+    --accent-teal-hover: #00d1b2;
+    --danger: #f44336;
+    --success: #4caf50;
+    --warning: #ff9800;
+    --info: #2196f3;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Navbar styles */
+.navbar {
+    background-color: #0a0a0a !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.navbar-brand {
+    color: var(--accent-teal) !important;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.nav-link {
+    color: var(--text-primary) !important;
+    transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+    color: var(--accent-teal) !important;
+}
+
+/* Card styles */
+.card {
+    background-color: var(--bg-card);
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    background-color: var(--bg-card-hover);
+}
+
+.card-title {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.card-text {
+    color: var(--text-secondary);
+}
+
+/* Button styles */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.btn-primary {
+    background-color: var(--accent-teal) !important;
+    border-color: var(--accent-teal) !important;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-teal-hover) !important;
+    border-color: var(--accent-teal-hover) !important;
+}
+
+.btn-success {
+    background-color: var(--accent-teal) !important;
+    border-color: var(--accent-teal) !important;
+}
+
+.btn-success:hover {
+    background-color: var(--accent-teal-hover) !important;
+    border-color: var(--accent-teal-hover) !important;
+}
+
+/* Table styles */
+.table {
+    color: var(--text-primary);
+}
+
+.table thead th {
+    background-color: #0a0a0a;
+    color: var(--accent-teal);
+    border-color: #333;
+}
+
+.table tbody tr {
+    background-color: var(--bg-card);
+    transition: background-color 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: var(--bg-card-hover);
+}
+
+.table td, .table th {
+    border-color: #333;
+}
+
+/* Form controls */
+.form-control, .form-select {
+    background-color: #2d2d2d;
+    border: 1px solid #444;
+    color: var(--text-primary);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: #333;
+    border-color: var(--accent-teal);
+    box-shadow: 0 0 0 0.25rem rgba(0, 191, 165, 0.25);
+    color: var(--text-primary);
+}
+
+/* Custom elements */
+.badge {
+    font-weight: 500;
+    padding: 0.4em 0.8em;
+}
+
+.badge-primary {
+    background-color: var(--accent-teal);
+}
+
+/* Transcript and conversation styling */
+.transcript-container {
+    background-color: var(--bg-card);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.utterance {
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: #2a2a2a;
+}
+
+.speaker-name {
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.timestamp {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.8rem;
+}
+
+/* Progress bars */
+.progress {
+    background-color: #333;
+    height: 10px;
+    border-radius: 5px;
+}
+
+.progress-bar {
+    background-color: var(--accent-teal);
+}
+
+/* Analysis section */
+.analysis-section {
+    background-color: var(--bg-card);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.analysis-title {
+    color: #ffffff;
+    border-bottom: 2px solid var(--accent-teal);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+/* Add a subtle animation for hover effects */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 191, 165, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 191, 165, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 191, 165, 0);
+    }
+}
+
+/* Modern scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent-teal);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-teal-hover);
+}
+
+/* Display 4 heading styling */
+.display-4 {
+    color: #ffffff;
+    font-weight: 700;
+    text-shadow: 0 2px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Logo animation */
+.navbar-brand {
+    position: relative;
+    overflow: hidden;
+}
+
+.navbar-brand:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: var(--accent-teal);
+    transition: width 0.3s ease;
+}
+
+.navbar-brand:hover:after {
+    width: 100%;
+}
+
+/* Add some transitions to make things smoother */
+.btn, .card, .form-control, .navbar-brand, .nav-link {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Record button effect */
+.btn-record {
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    background-color: var(--danger);
+    border-color: var(--danger);
+}
+
+.btn-record.recording {
+    animation: pulse 2s infinite;
+    background-color: var(--danger);
+}
+
+.time-display {
+    font-family: 'Courier New', monospace;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #ffffff;
+    letter-spacing: 2px;
+}
+
+.recording-status {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #ffffff;
+}
+
+/* Status indicator colors */
+.text-success {
+    color: var(--success) !important;
+}
+
+.text-danger {
+    color: var(--danger) !important;
+}
+
+.text-warning {
+    color: var(--warning) !important;
+}
+
+/* Transcript pre formatting */
+pre.transcript {
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    padding: 15px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.95rem;
+    border-left: 3px solid var(--accent-teal);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Version number styling */
+.version {
+    font-size: 0.6rem;
+    vertical-align: super;
+    color: var(--accent-teal);
+    opacity: 0.8;
+    font-weight: normal;
+    letter-spacing: 0;
+}
+
+/* Dialogue transcript styling */
+.dialogue-transcript {
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    padding: 15px;
+    color: var(--text-primary);
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.95rem;
+    border-left: 3px solid var(--accent-teal);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.utterance-line {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.speaker-badge {
+    background-color: var(--accent-teal);
+    color: #000;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-right: 10px;
+    font-size: 0.85rem;
+    min-width: 80px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.utterance-text {
+    flex-grow: 1;
+    padding-top: 3px;
+}
+
+/* Additional heading styles for better contrast */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff;
+}
+
+.card-header {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-header h5 {
+    color: #ffffff;
+    margin-bottom: 0;
+}
+
+/* Better speaker transcript styling */
+.transcript-by-speaker h6 {
+    color: var(--accent-teal);
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.speaker-transcript .utterance {
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.speaker-transcript .utterance p {
+    color: #ffffff;
+    margin-bottom: 10px;
+}
+
+.speaker-transcript .timestamp {
+    color: rgba(255, 255, 255, 0.6);
+    display: inline-block;
+    margin-bottom: 5px;
+}
+
+/* Improve list items in analysis */
+.analysis-section ul li {
+    color: #ffffff;
+}
+
+.analysis-section p {
+    color: #ffffff;
+}
+
+/* Text content styling */
+.card-body p {
+    color: #e0e0e0;
+}
+
+.text-muted {
+    color: #b0b0b0 !important;
+}
+
+/* Make small text readable */
+small.text-muted {
+    color: #b0b0b0 !important;
+}
+
+/* List group styling */
+.list-group-item {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: #ffffff;
+}
+
+.list-group-item.utterance {
+    padding: 12px 15px;
+    transition: all 0.2s ease;
+}
+
+.list-group-item.utterance:hover {
+    background-color: rgba(0, 150, 136, 0.1);
+}
+
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.badge.bg-info {
+    background-color: var(--accent-teal) !important;
+    color: #000;
+}
+
+.badge.bg-success {
+    background-color: var(--success) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--warning) !important;
+    color: #000;
+}
+
+/* Edit buttons styling */
+.edit-title-btn, .edit-speaker-btn {
+    color: var(--accent-teal);
+    padding: 0 4px;
+    opacity: 0.7;
+}
+
+.edit-title-btn:hover, .edit-speaker-btn:hover {
+    color: var(--accent-teal);
+    opacity: 1;
+}
+
+/* Ensure all text has proper contrast */
+body, p, span, div, li, td, th, small, label, input, select, textarea {
+    color: #e0e0e0;
+}
+
+/* Timer and recording specific styles */
+.timer, .counter, .duration, .time-display {
+    color: #ffffff !important;
+    font-weight: 500;
+}
+
+/* Time counters and timestamps */
+.seconds, .minutes, .timestamp, .time-counter {
+    color: #e0e0e0 !important;
+}
+
+/* Status indicators */
+.status-text, .state-indicator, .recording-status {
+    color: #ffffff;
+}
+
+/* Fix any Bootstrap text classes that might be used */
+.text-dark, .text-body, .text-black-50 {
+    color: #e0e0e0 !important;
+}
+
+/* Fix for any colored spans or small tags */
+span:not(.badge):not(.speaker-badge):not(.navbar-toggler-icon):not(.version),
+small:not(.badge):not(.speaker-badge):not(.text-muted) {
+    color: #e0e0e0;
+}
+
+/* Analytics numbers and metrics */
+.metric-value, .number, .count, .statistic, .percentage {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+/* Fix for any custom color utilities */
+[class*="text-dark"], [class*="text-black"], [class*="text-secondary"] {
+    color: #e0e0e0 !important;
+} 
