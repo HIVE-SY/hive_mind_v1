@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexagon Particle Loader</title>
+    <style>
+        :root {
+            --bg-primary: #121212;
+            --teal-primary: #00bfa5;
+            --teal-secondary: #00897b;
+            --teal-light: #64ffda;
+            --teal-dark: #005b4f;
+            --particle-color: rgba(100, 255, 218, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .loader-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+
+        .loader-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--teal-light);
+            font-weight: 500;
+            letter-spacing: 1px;
+            font-size: 14px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .hexagon-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            animation: rotate 12s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .hexagon {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transform-origin: center;
+        }
+
+        .hexagon:nth-child(1) {
+            animation: pulse-scale 3s ease-in-out infinite;
+        }
+
+        .hexagon:nth-child(2) {
+            transform: scale(0.8);
+            animation: pulse-scale 3s ease-in-out infinite 0.5s;
+        }
+
+        .hexagon:nth-child(3) {
+            transform: scale(0.6);
+            animation: pulse-scale 3s ease-in-out infinite 1s;
+        }
+
+        @keyframes pulse-scale {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
+
+        .hexagon svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background-color: var(--particle-color);
+            border-radius: 50%;
+            opacity: 0;
+            animation: particle-animation 3s ease-in-out infinite;
+        }
+
+        .particle:nth-child(odd) {
+            background-color: var(--teal-primary);
+        }
+
+        @keyframes particle-animation {
+            0% {
+                transform: translate(0, 0);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            80% {
+                opacity: 1;
+            }
+            100% {
+                transform: translate(
+                    calc(cos(var(--angle)) * var(--distance)),
+                    calc(sin(var(--angle)) * var(--distance))
+                );
+                opacity: 0;
+            }
+        }
+
+        /* Hexagon Progress Effect */
+        .hexagon-progress {
+            stroke-dasharray: 240;
+            stroke-dashoffset: 240;
+            animation: progress 3s linear infinite;
+        }
+
+        @keyframes progress {
+            0% { stroke-dashoffset: 240; }
+            100% { stroke-dashoffset: 0; }
+        }
+
+        /* Hexagon Outer Glow */
+        .hexagon-outer {
+            filter: drop-shadow(0 0 8px var(--teal-light));
+            opacity: 0.7;
+            animation: glow 4s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0% { filter: drop-shadow(0 0 5px var(--teal-light)); opacity: 0.5; }
+            50% { filter: drop-shadow(0 0 15px var(--teal-light)); opacity: 0.8; }
+            100% { filter: drop-shadow(0 0 5px var(--teal-light)); opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loader-container">
+        <div class="hexagon-container">
+            <div class="hexagon hexagon-outer">
+                <svg viewBox="0 0 100 100">
+                    <polygon points="50,3 97,26.5 97,73.5 50,97 3,73.5 3,26.5" fill="none" stroke="#00bfa5" stroke-width="2"></polygon>
+                </svg>
+            </div>
+            <div class="hexagon">
+                <svg viewBox="0 0 100 100">
+                    <polygon points="50,3 97,26.5 97,73.5 50,97 3,73.5 3,26.5" fill="none" stroke="#00bfa5" stroke-width="1.5"></polygon>
+                    <polygon points="50,15 85,32 85,68 50,85 15,68 15,32" fill="none" stroke="#64ffda" stroke-width="1" stroke-dasharray="2,2"></polygon>
+                </svg>
+            </div>
+            <div class="hexagon">
+                <svg viewBox="0 0 100 100">
+                    <polygon class="hexagon-progress" points="50,30 75,42.5 75,67.5 50,80 25,67.5 25,42.5" fill="none" stroke="#64ffda" stroke-width="2"></polygon>
+                    <circle cx="50" cy="50" r="8" fill="#00bfa5"></circle>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="loader-text">Processing</div>
+        
+        <div class="particles" id="particles"></div>
+    </div>
+    
+    <script>
+        // Create particles
+        const particlesContainer = document.getElementById('particles');
+        const particleCount = 24;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            
+            // Calculate random position and angle
+            const angle = (i / particleCount) * Math.PI * 2;
+            const distance = 50 + Math.random() * 50;
+            const delay = Math.random() * 2;
+            const size = 3 + Math.random() * 4;
+            
+            // Set particle style
+            particle.style.setProperty('--angle', angle);
+            particle.style.setProperty('--distance', distance + 'px');
+            particle.style.animationDelay = delay + 's';
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+            
+            // Random starting position within hexagon
+            const x = 50 + (Math.random() * 30 - 15);
+            const y = 50 + (Math.random() * 30 - 15);
+            particle.style.left = x + '%';
+            particle.style.top = y + '%';
+            
+            particlesContainer.appendChild(particle);
+        }
+
+        // Animate particles
+        function animateParticles() {
+            const particles = document.querySelectorAll('.particle');
+            
+            particles.forEach(particle => {
+                // Get current position
+                const x = parseFloat(particle.style.left);
+                const y = parseFloat(particle.style.top);
+                
+                // Generate random velocity
+                const angle = Math.random() * Math.PI * 2;
+                const dx = Math.cos(angle) * 0.5;
+                const dy = Math.sin(angle) * 0.5;
+                
+                // Update position
+                particle.style.left = (x + dx) + '%';
+                particle.style.top = (y + dy) + '%';
+                
+                // Keep particles within container
+                if (x < 0 || x > 100 || y < 0 || y > 100) {
+                    particle.style.left = '50%';
+                    particle.style.top = '50%';
+                }
+            });
+            
+            requestAnimationFrame(animateParticles);
+        }
+        
+        // Start animation
+        animateParticles();
+    </script>
+</body>
+</html>
