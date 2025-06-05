@@ -47,10 +47,7 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'lax',
-    domain: process.env.NODE_ENV === 'production'
-    ? 'hive-mind-frontend-259028418114.us-central1.run.app'
-    : undefined
+    sameSite: 'lax'
   }
 }));
 
@@ -59,6 +56,18 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'templates'));
 
 
+// Serve the landing page
+app.get('/', (req, res) => {
+  res.render('landing');
+});
+
+app.get('/api/me', requireLogin, (req, res) => {
+  if (req.session.user) {
+    res.json(req.session.user);
+  } else {
+    res.status(401).json({ error: 'Not logged in' });
+  }
+});
 
 
 app.use('/api/auth', magicLinkRouter);
@@ -74,19 +83,6 @@ app.use('/api/analysis', analysisRouter);
 app.use('/api/database', databaseRouter);
 
 
-// Serve the landing page
-app.get('/', (req, res) => {
-  res.render('landing');
-});
-
-// Serve the dashboard
-app.get('/dashboard', requireLogin, (req, res) => {
-  res.render('dashboard', {
-    error: req.query.error,
-    user: req.user,
-    conversations: [] // Initialize with empty array for now
-  });
-});
 
 // Serve the upload page
 app.get('/upload', requireLogin, (req, res) => {

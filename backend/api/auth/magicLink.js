@@ -77,7 +77,8 @@ router.get('/verify-link', async (req, res) => {
   };
 
   // Set cookie/session here, or return a token
-  res.redirect(`${backendUrl}/dashboard`); // Optional: send token/session data
+  const frontendUrl = process.env.FRONTEND_URL || 'https://hive-mind-frontend-259028418114.us-central1.run.app';
+  res.redirect(`${frontendUrl}/dashboard`);
 });
 
 module.exports = router;
