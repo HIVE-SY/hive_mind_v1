@@ -51,7 +51,7 @@ export default function Login() {
             className="login-input"
           />
           <button type="submit" className="cta-button">
-            Send 4UckLNG Magic Link
+            Send Magic Link
           </button>
         </form>
         {message && <p className="login-feedback">{message}</p>}

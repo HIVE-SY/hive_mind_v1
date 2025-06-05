@@ -34,7 +34,6 @@ router.get('/connect', (req, res) => {
 
 // Handle OAuth callback
 router.get('/callback', async (req, res) => {
-  console.log('🔄 Received OAuth callback');
   const { code } = req.query;
   
   if (!code) {
@@ -43,19 +42,30 @@ router.get('/callback', async (req, res) => {
   }
   
   try {
-    console.log('🔑 Exchanging code for tokens...');
     const { tokens } = await oauth2Client.getToken(code);
-    console.log('✅ Successfully obtained tokens');
-    
-    // Use session userId or fallback to a fixed one for testing
-    let userId = req.session.userId || `user-${Date.now()}`;
-    req.session.userId = userId;
-    console.log('💾 Storing tokens for userId:', userId);
-    
-    // Store tokens
-    userTokens.set(userId, tokens);
-    console.log('Tokens stored for user:', tokens);
-    res.redirect('/dashboard?success=true');
+    oauth2Client.setCredentials(tokens);
+
+    // Store tokens in users table (by logged-in user)
+    const expiry = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
+
+    await pool.query(
+      `UPDATE users SET 
+        google_access_token = $1,
+        google_refresh_token = $2,
+        google_token_expiry = $3,
+        google_connected = TRUE
+      WHERE id = $4`,
+      [tokens.access_token, tokens.refresh_token, expiry, req.session.user.id]
+    );
+
+    // Optional: set a flag in session for UI
+    req.session.googleConnected = true;
+
+    // Redirect back to frontend dashboard
+    const frontendUrl = process.env.NODE_ENV === 'production'
+      ? process.env.FRONTEND_URL + '/dashboard'
+      : 'http://localhost:5173/dashboard';
+    res.redirect(frontendUrl);
   } catch (error) {
     console.error('❌ Error getting tokens:', error);
     res.redirect('/dashboard?error=auth_failed');
