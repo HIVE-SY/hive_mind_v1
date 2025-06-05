@@ -48,7 +48,7 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    domain: process.env.NODE_ENV === 'production' ? '.us-central1.run.app' : undefined
+    ...(process.env.NODE_ENV === 'production' ? { domain: '.us-central1.run.app' } : {})
   }
 }));
 
@@ -115,10 +115,6 @@ const server = app.listen(PORT, async () => {
   }
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Please try these solutions:`);
-    console.error('1. Kill the process using the port:');
-    console.error('   Windows: netstat -ano | findstr :3000');
-    console.error('   Then: taskkill /PID <PID> /F');
     console.error('2. Or use a different port by setting the PORT environment variable');
     process.exit(1);
   } else {

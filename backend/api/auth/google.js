@@ -3,6 +3,8 @@ const router = express.Router();
 const { OAuth2Client } = require('google-auth-library');
 const { google } = require('googleapis');
 require('dotenv').config();
+const pool = require('../../database/affine/db')
+
 
 // Initialize OAuth2 client
 const oauth2Client = new OAuth2Client(
@@ -12,7 +14,7 @@ const oauth2Client = new OAuth2Client(
 );
 
 // Store user tokens (in production, use a database)
-const userTokens = new Map();
+
 
 // Generate Google OAuth URL
 router.get('/connect', (req, res) => {
@@ -73,38 +75,89 @@ router.get('/callback', async (req, res) => {
 });
 
 // Check connection status
-router.get('/status', (req, res) => {
-  const userId = req.session.userId;
+router.get('/status', async (req, res) => {
+  if (!req.session.user || !req.session.user.id) {
+    console.log('🔍 Checking connection status: user not logged in');
+    return res.json({ connected: false });
+  }
+  const userId = req.session.user.id;
   console.log('🔍 Checking connection status for userId:', userId);
-  const tokens = userTokens.get(userId);
-  res.json({
-    connected: !!tokens
-  });
+
+  try {
+    const dbRes = await pool.query(
+      `SELECT google_access_token, google_refresh_token, google_token_expiry, google_connected
+      FROM users WHERE id = $1`,
+      [userId]
+    );
+    const user = dbRes.rows[0];
+    if (user && user.google_access_token && user.google_refresh_token && user.google_connected) {
+      return res.json({ connected: true });
+    } else {
+      return res.json({ connected: false });
+    }
+  } catch (err) {
+    console.error('❌ Error checking Google connection status:', err);
+    res.status(500).json({ connected: false, error: 'DB error' });
+  }
 });
 
 // Disconnect Google Calendar
-router.post('/disconnect', (req, res) => {
-  const userId = req.session.userId;
+router.post('/disconnect', async (req, res) => {
+  if (!req.session.user || !req.session.user.id) {
+    console.log('🔌 Disconnect failed: not logged in');
+    return res.status(401).json({ success: false, error: 'Not logged in' });
+  }
+  const userId = req.session.user.id;
   console.log('🔌 Disconnecting Google Calendar for userId:', userId);
-  userTokens.delete(userId);
-  res.json({ success: true });
+
+  try {
+    await pool.query(
+      `UPDATE users SET
+        google_access_token = NULL,
+        google_refresh_token = NULL,
+        google_token_expiry = NULL,
+        google_connected = FALSE
+      WHERE id = $1`,
+      [userId]
+    );
+    req.session.googleConnected = false; // for frontend UI, optional
+    res.json({ success: true });
+  } catch (err) {
+    console.error('❌ Error disconnecting Google:', err);
+    res.status(500).json({ success: false, error: 'DB error' });
+  }
 });
 
 // Get user's calendar events
 router.get('/events', async (req, res) => {
-  const userId = req.session.userId;
-  console.log('📅 Fetching calendar events for userId:', userId);
-  const tokens = userTokens.get(userId);
-  
-  if (!tokens) {
-    console.error('❌ No tokens found for user');
-    return res.status(401).json({ error: 'Not connected to Google Calendar' });
+  if (!req.session.user || !req.session.user.id) {
+    console.log('📅 Fetching calendar events: not logged in');
+    return res.status(401).json({ error: 'Not logged in' });
   }
-  
+  const userId = req.session.user.id;
+  console.log('📅 Fetching calendar events for userId:', userId);
+
   try {
-    oauth2Client.setCredentials(tokens);
+    // Fetch tokens from DB
+    const dbRes = await pool.query(
+      `SELECT google_access_token, google_refresh_token FROM users WHERE id = $1`,
+      [userId]
+    );
+    const user = dbRes.rows[0];
+
+    if (!user || !user.google_access_token || !user.google_refresh_token) {
+      console.error('❌ No tokens found for user');
+      return res.status(401).json({ error: 'Not connected to Google Calendar' });
+    }
+
+    // Set tokens for API call
+    oauth2Client.setCredentials({
+      access_token: user.google_access_token,
+      refresh_token: user.google_refresh_token
+    });
+
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-    
+
     console.log('🔍 Fetching events from calendar...');
     const response = await calendar.events.list({
       calendarId: 'primary',
@@ -113,16 +166,18 @@ router.get('/events', async (req, res) => {
       singleEvents: true,
       orderBy: 'startTime'
     });
-    
+
     console.log(`✅ Found ${response.data.items.length} events`);
     res.json(response.data.items);
+
   } catch (error) {
     console.error('❌ Error fetching calendar events:', error);
     res.status(500).json({ error: 'Failed to fetch calendar events' });
   }
 });
 
+
 module.exports = {
   router,
-  userTokens
+  
 }; 
