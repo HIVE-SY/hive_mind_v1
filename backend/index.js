@@ -25,10 +25,17 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'static')));
 
 // Enable CORS for frontend dev server
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://hive-mind-frontend-259028418114.us-central1.run.app']
+  : ['http://localhost:5173', 'http://localhost:8000'];
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:8000', 
-    'https://hive-mind-frontend-259028418114.us-central1.run.app'
-  ],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS error: Not allowed by CORS for origin ${origin}`));
+    }
+  },
   credentials: true
 }));
 
@@ -41,7 +48,9 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
     sameSite: 'lax',
-    domain: 'localhost'
+    domain: process.env.NODE_ENV === 'production'
+    ? 'hive-mind-frontend-259028418114.us-central1.run.app'
+    : undefined
   }
 }));
 
