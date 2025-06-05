@@ -13,13 +13,21 @@ export default function Dashboard() {
 
   // ⬇️ Session check (fetch user or redirect to login)
   useEffect(() => {
+    console.log('🔍 Checking session status...');
     fetch('/api/me', { credentials: 'include' })
       .then(res => {
+        console.log('📡 Response status:', res.status);
         if (!res.ok) throw new Error('Not logged in');
         return res.json();
       })
-      .then(data => setUser(data))
-      .catch(() => navigate('/')); // redirect if not logged in
+      .then(data => {
+        console.log('👤 User data received:', data);
+        setUser(data);
+      })
+      .catch(err => {
+        console.error('❌ Session check failed:', err);
+        navigate('/');
+      });
   }, [navigate]);
 
   // Google Calendar status
