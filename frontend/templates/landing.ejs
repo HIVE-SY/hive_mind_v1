@@ -837,7 +837,7 @@
         <div class="logo-icon" aria-hidden="true"></div>
         <div class="logo-text">Hive Mind <span>VOX</span></div>
       </a>
-      <a href="<%= process.env.FRONTEND_URL || 'http://localhost:5173/login' %>"
+      <a href="<%= process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173' %>"
          class="cta-button cta-button-secondary" style="margin-left: auto;">Login</a>
     </div>
   </header>

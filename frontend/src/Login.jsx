@@ -1,7 +1,9 @@
 import { useState } from "react";
 import './login.css';
 
-const API_BASE_URL = 'https://hive-mind-v1-api-259028418114.us-central1.run.app';
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://hive-mind-v1-api-259028418114.us-central1.run.app'
+  : 'http://localhost:8000';
 
 
 export default function Login() {

@@ -4,7 +4,6 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  root: 'react',
   server: {
     port: 5173,
     proxy: {
@@ -20,7 +19,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        login: path.resolve(__dirname, 'react/index.html'),
+        login: path.resolve(__dirname, 'index.html'),
       },
       output: {
         entryFileNames: 'bundle.js',

@@ -47,7 +47,8 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: 'lax'
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    domain: process.env.NODE_ENV === 'production' ? '.us-central1.run.app' : undefined
   }
 }));
 
@@ -62,6 +63,8 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/me', requireLogin, (req, res) => {
+  console.log('Session cookie:', req.headers.cookie);
+  console.log('Session:', req.session);
   if (req.session.user) {
     res.json(req.session.user);
   } else {

@@ -6,7 +6,9 @@ const { Pool } = require('pg');
 const nodemailer = require('nodemailer');
 const router = express.Router();
 
-const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+const backendUrl = process.env.NODE_ENV === 'production'
+  ? process.env.BACKEND_URL
+  : 'http://localhost:8000';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL, // Should point to your PostgreSQL URL
@@ -76,9 +78,16 @@ router.get('/verify-link', async (req, res) => {
     email: user.email,
   };
 
-  // Set cookie/session here, or return a token
-  const frontendUrl = process.env.FRONTEND_URL || 'https://hive-mind-frontend-259028418114.us-central1.run.app';
-  res.redirect(`${frontendUrl}/dashboard`);
+  // Save session before redirecting
+  req.session.save((err) => {
+    if (err) {
+      console.error('Error saving session:', err);
+      return res.status(500).json({ error: 'Failed to save session' });
+    }
+    
+    const frontendUrl = process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/dashboard`);
+  });
 });
 
 module.exports = router;
