@@ -57,7 +57,7 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production',
     maxAge: 24 * 60 * 60 * 1000,
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    ...(process.env.NODE_ENV === 'production' ? { domain: '.us-central1.run.app' } : {})
+    ...(process.env.NODE_ENV === 'production' ? { domain: 'hive-mind-v1-api-259028418114.us-central1.run.app' } : {})
   }
 }));
 
