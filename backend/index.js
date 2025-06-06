@@ -14,6 +14,8 @@ const { verify } = require('crypto');
 const logoutRouter = require('./api/auth/logout');
 const magicLinkRouter = require('./api/auth/magicLink');
 const pgSession = require('connect-pg-simple')(session);
+const pool = require('./database/affine/db')
+
 
 
 const app = express();
