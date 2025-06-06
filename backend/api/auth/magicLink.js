@@ -94,7 +94,21 @@ router.get('/verify-link', async (req, res) => {
     console.log('🔄 Redirecting to dashboard...');
     
     const frontendUrl = process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/dashboard`);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta http-equiv="refresh" content="0; url=${frontendUrl}/dashboard" />
+          <title>Redirecting...</title>
+        </head>
+        <body>
+          <script>
+            window.location.href='${frontendUrl}/dashboard';
+          </script>
+          <p>Redirecting to your dashboard...</p>
+        </body>
+      </html>
+    `);
     console.log('🔄 url to frontend url...', frontendUrl);
   });
 });
