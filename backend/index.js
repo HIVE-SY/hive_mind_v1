@@ -13,6 +13,7 @@ const requireLogin = require('./api/middleware/require-login');
 const { verify } = require('crypto');
 const logoutRouter = require('./api/auth/logout');
 const magicLinkRouter = require('./api/auth/magicLink');
+const pgSession = require('connect-pg-simple')(session);
 
 
 const app = express();
