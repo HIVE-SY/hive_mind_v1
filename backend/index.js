@@ -19,6 +19,8 @@ const pool = require('./database/affine/db')
 
 
 const app = express();
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 8000;
 
 
@@ -58,6 +60,18 @@ app.use(session({
     ...(process.env.NODE_ENV === 'production' ? { domain: '.us-central1.run.app' } : {})
   }
 }));
+
+app.use((req, res, next) => {
+  const originalSetHeader = res.setHeader;
+  res.setHeader = function (name, value) {
+    if (name.toLowerCase() === 'set-cookie') {
+      console.log('Set-Cookie Header:', value); // <-- See if it's being sent!
+    }
+    return originalSetHeader.apply(this, arguments);
+  };
+  next();
+});
+
 
 // Set up EJS as the view engine
 app.set('view engine', 'ejs');
