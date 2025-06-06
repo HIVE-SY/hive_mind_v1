@@ -3,6 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // don't forget to import this!
 import '../static/css/dark-theme.css'; // Adjust path if needed
 
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://hive-mind-v1-api-259028418114.us-central1.run.app'
+  : 'http://localhost:8000';
+  
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [googleStatus, setGoogleStatus] = useState('Not Connected');
@@ -14,7 +18,7 @@ export default function Dashboard() {
   // ⬇️ Session check (fetch user or redirect to login)
   useEffect(() => {
     console.log('🔍 Checking session status...');
-    fetch('/api/me', { credentials: 'include' })
+    fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' })
       .then(res => {
         console.log('📡 Response status:', res.status);
         if (!res.ok) throw new Error('Not logged in');
@@ -32,7 +36,7 @@ export default function Dashboard() {
 
   // Google Calendar status
   useEffect(() => {
-    fetch('/api/auth/google/status', { credentials: 'include' })
+    fetch(`${API_BASE_URL}/api/auth/google/status`, { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setGoogleStatus(data.connected ? 'Connected' : 'Not Connected');
@@ -41,14 +45,14 @@ export default function Dashboard() {
 
   // Connect/Disconnect Google Calendar
   const connectGoogleCalendar = async () => {
-    const res = await fetch('/api/auth/google/connect', { credentials: 'include' });
+    const res = await fetch(`${API_BASE_URL}/api/auth/google/connect`, { credentials: 'include' });
     const data = await res.json();
     if (data.authUrl) window.location.href = data.authUrl;
     else alert('Error: Could not get authentication URL');
   };
 
   const disconnectGoogleCalendar = async () => {
-    await fetch('/api/auth/google/disconnect', { method: 'POST', credentials: 'include' });
+    await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { method: 'POST', credentials: 'include' });
     setGoogleStatus('Not Connected');
     alert('Disconnected from Google Calendar');
   };
@@ -59,7 +63,7 @@ export default function Dashboard() {
       alert('Please enter a meeting link');
       return;
     }
-    const response = await fetch('/api/meetings/join', {
+    const response = await fetch(`${API_BASE_URL}/api/meetings/join`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -71,7 +75,7 @@ export default function Dashboard() {
 
   // Logout handler
   const handleLogout = async () => {
-    await fetch('/api/logout', {
+    await fetch(`${API_BASE_URL}/api/logout`, {
       method: 'POST',
       credentials: 'include',
     });
