@@ -23,7 +23,7 @@ RUN npm ci
 COPY . .
 
 # Preload Puppeteer profile if used
-COPY puppeteer/bot-profile /app/puppeteer/bot-profile
+COPY meeting/bot-profile /app/meeting/bot-profile
 COPY templates ./templates
 COPY static ./static
 # Puppeteer environment variables
