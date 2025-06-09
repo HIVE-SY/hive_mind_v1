@@ -24,6 +24,8 @@ COPY . .
 
 # Preload Puppeteer profile if used
 COPY meeting/bot-profile /app/meeting/bot-profile
+# Set permissions on the profile directory
+RUN chmod -R 777 /app/meeting/bot-profile
 COPY templates ./templates
 COPY static ./static
 # Puppeteer environment variables
