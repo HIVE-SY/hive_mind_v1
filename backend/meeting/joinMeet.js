@@ -1,6 +1,19 @@
 const puppeteer = require("puppeteer");
 const path = require("path");
 require("dotenv").config();
+const { Storage } = require('@google-cloud/storage');
+
+const storage = new Storage();
+
+const bucketName = 'run-sources-enduring-smile-378219-us-central1';
+
+async function uploadScreenshot(localPath, gcsDest) {
+  await storage.bucket(bucketName).upload(localPath, {
+    destination: gcsDest,
+    public: false // or true if you want to access via public link
+  });
+  console.log(`Screenshot uploaded: gs://${bucketName}/${gcsDest}`);
+}
 
 // Add global error handlers
 process.on('uncaughtException', (error) => {
@@ -93,6 +106,11 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
 
       // Wait for the page to fully load
       await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      //Take sc to full load page
+      await page.screenshot({ path: '/tmp/meet_debug_full_load.png' });
+      await uploadScreenshot('/tmp/meet_debug_full_load.png', 'meet-debug/meet_debug_full_load.png');
+
 
       // Handle name input if present
       try {
@@ -109,7 +127,7 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
         });
         
         // Type the name without pressing Enter
-        await page.type('input[aria-label="Your name"]', '🤖 Meeting Bot');
+        await page.type('input[aria-label="Your name"]', '🤖 Hive Mind AI');
         
         // Click outside the input to ensure it's saved
         await page.mouse.click(100, 100);
@@ -131,6 +149,10 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
         }
         
         console.log('✅ Name set successfully');
+        //sc after name input
+        await page.screenshot({ path: '/tmp/meet_debug_after_nameinput.png' });
+        await uploadScreenshot('/tmp/meet_debug_after_nameinput.png', 'meet-debug/meet_debug_after_nameinput.png');
+
       } catch (error) {
         console.log('⚠️ No name input found, might be already set');
       }
