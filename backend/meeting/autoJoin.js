@@ -41,10 +41,15 @@ const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 async function joinMeetingByLink(meetingLink) {
   try {
     console.log('🔗 Joining meeting via link:', meetingLink);
-    await joinMeet(meetingLink);
+    const success = await joinMeet(meetingLink);
+    if (!success) {
+      console.error('❌ Failed to join meeting');
+      return false;
+    }
+    return true;
   } catch (error) {
     console.error('❌ Error joining meeting by link:', error.message);
-    throw error;
+    return false;
   }
 }
 
@@ -54,18 +59,35 @@ async function joinMeetingByLink(meetingLink) {
 async function checkAndJoinUpcomingMeetings() {
   try {
     console.log('🔍 Checking for upcoming meetings...');
+    
     // Get refresh token for test-user
     const userId = 'test-user';
-    const tokens = userTokens.get(userId);
-    const userRefreshToken = tokens ? tokens.refresh_token : undefined;
-    if (!userRefreshToken) {
-      console.error('No refresh token found for user:', userId);
+    
+    // Check if userTokens is properly initialized
+    if (!userTokens || typeof userTokens.get !== 'function') {
+      console.log('⚠️ userTokens not properly initialized');
       return;
     }
+    
+    const tokens = userTokens.get(userId);
+    
+    if (!tokens || !tokens.refresh_token) {
+      console.log('⚠️ No refresh token found for user:', userId);
+      return;
+    }
+
+    const userRefreshToken = tokens.refresh_token;
+    
     // Get meetings from both user's and bot's calendars
     const [userMeetings, botMeetings] = await Promise.all([
-      listUserUpcomingMeetings(userRefreshToken),
-      listBotUpcomingMeetings()
+      listUserUpcomingMeetings(userRefreshToken).catch(error => {
+        console.error('❌ Error fetching user meetings:', error);
+        return [];
+      }),
+      listBotUpcomingMeetings().catch(error => {
+        console.error('❌ Error fetching bot meetings:', error);
+        return [];
+      })
     ]);
 
     const now = new Date();
@@ -78,7 +100,13 @@ async function checkAndJoinUpcomingMeetings() {
       // Join meeting 5 minutes before it starts
       if (timeUntilMeeting > 0 && timeUntilMeeting <= 5 * 60 * 1000) {
         console.log(`🤖 Joining user's meeting: ${meeting.summary}`);
-        await joinMeet(meeting.link);
+        const success = await joinMeet(meeting.link).catch(error => {
+          console.error(`❌ Error joining user's meeting ${meeting.summary}:`, error);
+          return false;
+        });
+        if (!success) {
+          console.error(`❌ Failed to join user's meeting: ${meeting.summary}`);
+        }
       }
     }
 
@@ -90,11 +118,18 @@ async function checkAndJoinUpcomingMeetings() {
       // Join meeting 5 minutes before it starts
       if (timeUntilMeeting > 0 && timeUntilMeeting <= 5 * 60 * 1000) {
         console.log(`🤖 Joining bot's meeting: ${meeting.summary}`);
-        await joinMeet(meeting.link);
+        const success = await joinMeet(meeting.link).catch(error => {
+          console.error(`❌ Error joining bot's meeting ${meeting.summary}:`, error);
+          return false;
+        });
+        if (!success) {
+          console.error(`❌ Failed to join bot's meeting: ${meeting.summary}`);
+        }
       }
     }
   } catch (error) {
-    console.error('❌ Error checking upcoming meetings:', error.message);
+    console.error('❌ Error checking upcoming meetings:', error);
+    // Don't throw the error to prevent the service from crashing
   }
 }
 

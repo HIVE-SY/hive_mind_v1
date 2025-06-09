@@ -2,6 +2,17 @@ const puppeteer = require("puppeteer");
 const path = require("path");
 require("dotenv").config();
 
+// Add global error handlers
+process.on('uncaughtException', (error) => {
+  console.error('⚠️ Uncaught Exception:', error);
+  // Don't crash the process
+});
+
+process.on('unhandledRejection', (error) => {
+  console.error('⚠️ Unhandled Rejection:', error);
+  // Don't crash the process
+});
+
 /**
  * Join a Google Meet meeting
  * @param {string} meetingUrl The URL of the meeting to join
@@ -20,11 +31,11 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
     
     try {
       browser = await puppeteer.launch({
-    headless: false,
+        headless: "new",
         userDataDir: path.join(__dirname, 'bot-profile'),
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
           '--disable-gpu',
@@ -33,13 +44,21 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
           '--disable-blink-features=AutomationControlled',
           '--disable-features=IsolateOrigins,site-per-process',
           '--disable-site-isolation-trials',
-          '--use-fake-ui-for-media-stream'
+          '--use-fake-ui-for-media-stream',
+          '--disable-web-security',
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--disable-site-isolation-trials'
         ],
         ignoreDefaultArgs: ['--enable-automation'],
         defaultViewport: null
-  });
+      });
 
-  const page = await browser.newPage();
+      // Add error handler for browser
+      browser.on('disconnected', () => {
+        console.log('⚠️ Browser disconnected');
+      });
+
+      const page = await browser.newPage();
       
       // Set user agent to look like a regular Chrome browser
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
@@ -66,12 +85,11 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
         console.error('❌ Page error:', err);
       });
 
-      page.on('console', msg => {
-        console.log('📝 Browser console:', msg.text());
-      });
-
       console.log('🌐 Navigating to meeting:', meetingUrl);
-      await page.goto(meetingUrl, { waitUntil: 'networkidle0' });
+      await page.goto(meetingUrl, { 
+        waitUntil: 'networkidle0',
+        timeout: 60000 
+      });
 
       // Wait for the page to fully load
       await new Promise(resolve => setTimeout(resolve, 5000));
@@ -121,82 +139,71 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
       try {
         console.log('🔍 Looking for join button...');
         
-        // Try different selectors for the "Ask to join" button
-        const buttonSelectors = [
-          'button[jsname="Qx7uuf"] span.UywwFc-RLmnJb',  // Specific class for the button text
-          'button[jsname="Qx7uuf"]',  // Generic button
-          'button[aria-label="Ask to join"]',
-          'button[aria-label="ask to join"]',
-          'button[aria-label="Solicitar para unirse"]',
-          'button[aria-label="solicitar para unirse"]'
-        ];
-
-        let joinButton = null;
-        for (const selector of buttonSelectors) {
-          try {
-            console.log(`Trying selector: ${selector}`);
-            
-            // Wait for the element
-            await page.waitForSelector(selector, { timeout: 5000 });
-            
-            // Get all matching elements
-            const elements = await page.$$(selector);
-            
-            for (const element of elements) {
-              // Get the text content
-              const text = await page.evaluate(el => el.textContent.toLowerCase(), element);
-              // Get the aria-label (if it's a button)
-              const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', element);
-              // Get the parent button if this is a span
-              const parentButton = await page.evaluate(el => {
-                if (el.tagName.toLowerCase() === 'span') {
-                  return el.closest('button');
-                }
-                return el;
-              }, element);
-              
-              console.log(`Found element with text: "${text}", aria-label: "${ariaLabel}"`);
-              
-              if (text.includes('ask to join') || text.includes('solicitar') || 
-                  ariaLabel.includes('ask to join') || ariaLabel.includes('solicitar')) {
-                joinButton = parentButton;
-                console.log(`✅ Found "Ask to join" button with selector: ${selector}`);
-                break;
-              }
-            }
-            
-            if (joinButton) break;
-          } catch (error) {
-            console.log(`Selector ${selector} not found, trying next...`);
-          }
+        // Wait for the page to be fully loaded
+        await page.waitForFunction(() => {
+          return document.readyState === 'complete';
+        }, { timeout: 10000 });
+        
+        // Log all buttons on the page for debugging
+        const allButtons = await page.$$('button');
+        console.log(`Found ${allButtons.length} total buttons on the page`);
+        
+        for (const button of allButtons) {
+          const text = await page.evaluate(el => el.textContent.toLowerCase(), button);
+          const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', button);
+          const jsname = await page.evaluate(el => el.getAttribute('jsname') || '', button);
+          console.log(`Button found - text: "${text}", aria-label: "${ariaLabel}", jsname: "${jsname}"`);
         }
-
-        if (!joinButton) {
-          // Last resort: try to find any button with the text
+        
+        // Try the original selector first
+        const buttonSelector = 'button[jsname="Qx7uuf"]';
+        console.log(`Trying selector: ${buttonSelector}`);
+        
+        try {
+          await page.waitForSelector(buttonSelector, { timeout: 10000 });
+          const elements = await page.$$(buttonSelector);
+          console.log(`Found ${elements.length} elements with selector ${buttonSelector}`);
+          
+          let joinButton = null;
+          for (const element of elements) {
+            const text = await page.evaluate(el => el.textContent.toLowerCase(), element);
+            const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', element);
+            
+            console.log(`Element text: "${text}", aria-label: "${ariaLabel}"`);
+            
+            if (text.includes('ask to join') || text.includes('solicitar') || 
+                ariaLabel.includes('ask to join') || ariaLabel.includes('solicitar')) {
+              joinButton = element;
+              console.log(`✅ Found "Ask to join" button`);
+              break;
+            }
+          }
+          
+          if (joinButton) {
+            console.log('Clicking "Ask to join" button...');
+            await joinButton.click();
+            await new Promise(resolve => setTimeout(resolve, 5000));
+          } else {
+            throw new Error('Join button not found with expected text');
+          }
+        } catch (error) {
+          console.log(`Selector ${buttonSelector} not found, trying fallback...`);
+          
+          // Fallback: Try to find any button with the text
           console.log('Trying to find button by text content...');
-          const buttons = await page.$$('button');
-          for (const button of buttons) {
+          for (const button of allButtons) {
             const text = await page.evaluate(el => el.textContent.toLowerCase(), button);
             const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', button);
             
             if (text.includes('ask to join') || text.includes('solicitar') || 
                 ariaLabel.includes('ask to join') || ariaLabel.includes('solicitar')) {
-              joinButton = button;
-              console.log('✅ Found "Ask to join" button by text content');
+              console.log(`✅ Found "Ask to join" button by text content`);
+              await button.click();
+              await new Promise(resolve => setTimeout(resolve, 5000));
               break;
             }
           }
         }
-
-        if (!joinButton) {
-          throw new Error('Could not find "Ask to join" button');
-        }
-
-        console.log('Clicking "Ask to join" button...');
-        await joinButton.click();
-        
-        // Wait for the page to update after clicking join
-        await new Promise(resolve => setTimeout(resolve, 5000));
       } catch (error) {
         console.log('⚠️ Could not find the join button:', error.message);
         if (attempt < maxRetries) {
@@ -208,71 +215,34 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
         throw new Error('Failed to find join button after all retries');
       }
 
-      // Check if we're in the waiting room
-      try {
-        console.log('🔍 Checking for waiting room...');
-        
-        const askToJoinButton = await page.$('button[jsname="Qx7uuf"]');
-        if (askToJoinButton) {
-          const buttonText = await page.evaluate(button => button.innerText.toLowerCase(), askToJoinButton);
-          if (buttonText.includes('ask to join')) {
-            console.log('🔘 Found "Ask to join" button, clicking...');
-            await askToJoinButton.click();
-            console.log('⏳ Waiting for host to admit...');
-            
-            await Promise.race([
-              page.waitForFunction(() => {
-                const text = document.body.innerText.toLowerCase();
-                return !text.includes('waiting room') && 
-                       !text.includes('waiting to join') &&
-                       !text.includes('sala de espera') &&
-                       !text.includes('solicitando ingreso');
-              }, { timeout: 300000 }),
-              
-              page.waitForSelector('button[jsname="K4r5Ff"]', { timeout: 300000 })
-            ]);
-            
-            console.log('✅ Admitted to meeting!');
-          } else {
-            console.log('✅ No waiting room detected, proceeding to meeting...');
-          }
-        } else {
-          console.log('✅ No waiting room detected, proceeding to meeting...');
-        }
-      } catch (error) {
-        console.log('⚠️ Could not check waiting room status:', error.message);
-        if (attempt < maxRetries) {
-          console.log(`⏳ Retrying in ${retryDelay/1000} seconds...`);
-          await browser.close();
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
-          continue;
-        }
-        throw new Error('Failed to check waiting room status after all retries');
-      }
-
-      // Wait a bit for the meeting to load
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // Function to ensure camera and mic settings
+      // Function to ensure media settings
       async function ensureMediaSettings() {
         try {
-          // Mute microphone
-          const micButton = await page.$('button[jsname="K4r5Ff"]');
-          if (micButton) {
-            const micState = await page.evaluate(button => button.getAttribute('aria-label'), micButton);
-            if (micState.includes('Turn on microphone')) {
-              await micButton.click();
-              console.log('🎙️ Mic muted');
+          const allButtons = await page.$$('button');
+          let micButton = null;
+          
+          for (const button of allButtons) {
+            const text = await page.evaluate(el => el.textContent.toLowerCase(), button);
+            const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', button);
+            
+            if (text.includes('mic') || ariaLabel.includes('mic') || ariaLabel.includes('microphone')) {
+              micButton = button;
+              break;
             }
           }
 
-          // Turn off camera
-          const cameraButton = await page.$('button[jsname="BOHaEe"]');
-          if (cameraButton) {
-            const cameraState = await page.evaluate(button => button.getAttribute('aria-label'), cameraButton);
-            if (cameraState.includes('Turn on camera')) {
-              await cameraButton.click();
-              console.log('📷 Camera off');
+          if (micButton) {
+            // Check if mic is currently unmuted before clicking
+            const isUnmuted = await page.evaluate(button => {
+              const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
+              const dataIsMuted = button.getAttribute('data-is-muted');
+              return ariaLabel.includes('unmuted') || ariaLabel.includes('on') || dataIsMuted === 'false';
+            }, micButton);
+
+            if (isUnmuted) {
+              console.log('🎙️ Mic is unmuted, muting...');
+              await micButton.click();
+              await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
         } catch (error) {
@@ -283,57 +253,32 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
       // Set initial media settings
       await ensureMediaSettings();
 
-      // Set up periodic checks to ensure settings stay consistent
-      const mediaCheckInterval = setInterval(async () => {
-        await ensureMediaSettings();
-      }, 10000); // Check every 10 seconds
-
-      // Set up connection monitoring
-      const connectionCheckInterval = setInterval(async () => {
-        try {
-          // Check if we're still in the meeting
-          const isInMeeting = await page.evaluate(() => {
-            return document.querySelector('button[jsname="K4r5Ff"]') !== null;
-          });
-
-          if (!isInMeeting) {
-            console.log('⚠️ Lost connection to meeting, attempting to reconnect...');
-            clearInterval(mediaCheckInterval);
-            clearInterval(connectionCheckInterval);
-            await browser.close();
-            throw new Error('Lost connection to meeting');
-          }
-        } catch (error) {
-          console.log('⚠️ Error checking connection:', error.message);
-        }
-      }, 5000); // Check every 5 seconds
-
-      // Keep the browser open and handle cleanup
-      process.on('SIGINT', async () => {
-        console.log('\n🛑 Cleaning up...');
-        clearInterval(mediaCheckInterval);
-        clearInterval(connectionCheckInterval);
-        await browser.close();
-        process.exit(0);
-      });
+      // Keep checking media settings
+      setInterval(ensureMediaSettings, 5000);
 
       console.log('✅ Successfully joined the meeting');
-      return; // Success! Exit the function
+      return true;
 
     } catch (error) {
       console.error(`❌ Error on attempt ${attempt}:`, error.message);
       if (browser) {
-        await browser.close();
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error('⚠️ Error closing browser:', closeError);
+        }
       }
       
       if (attempt < maxRetries) {
         console.log(`⏳ Retrying in ${retryDelay/1000} seconds...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));
-    } else {
-        throw new Error(`Failed to join meeting after ${maxRetries} attempts: ${error.message}`);
+      } else {
+        console.error('❌ Max retries reached, giving up');
+        return false;
       }
     }
   }
+  return false;
 }
 
 // If this file is run directly, use the MEET_URL from environment variables
@@ -342,8 +287,11 @@ if (require.main === module) {
   if (!meetUrl) {
     console.error("❌ No MEET_URL provided in environment variables");
     process.exit(1);
-  }
-  joinMeet(meetUrl);
+  } 
+  joinMeet(meetUrl).catch(error => {
+    console.error('❌ Error joining meeting:', error);
+    process.exit(1);
+  });
 }
 
 module.exports = {

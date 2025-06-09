@@ -1,7 +1,7 @@
 // src/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // don't forget to import this!
-import '../static/css/dark-theme.css'; // Adjust path if needed
+import { useNavigate } from 'react-router-dom';
+import '../static/css/dark-theme.css';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? 'https://hive-mind-v1-api-259028418114.us-central1.run.app'
@@ -15,32 +15,22 @@ export default function Dashboard() {
   const [conversations, setConversations] = useState([]);
   const navigate = useNavigate();
 
-  // ⬇️ Session check (fetch user or redirect to login)
+  // Session check
   useEffect(() => {
-    console.log('🔍 Checking session status...');
     fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' })
       .then(res => {
-        console.log('📡 Response status:', res.status);
         if (!res.ok) throw new Error('Not logged in');
         return res.json();
       })
-      .then(data => {
-        console.log('👤 User data received:', data);
-        setUser(data);
-      })
-      .catch(err => {
-        console.error('❌ Session check failed:', err);
-        navigate('/');
-      });
+      .then(data => setUser(data))
+      .catch(err => navigate('/'));
   }, [navigate]);
 
   // Google Calendar status
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/auth/google/status`, { credentials: 'include' })
       .then(res => res.json())
-      .then(data => {
-        setGoogleStatus(data.connected ? 'Connected' : 'Not Connected');
-      });
+      .then(data => setGoogleStatus(data.connected ? 'Connected' : 'Not Connected'));
   }, []);
 
   // Connect/Disconnect Google Calendar
@@ -52,25 +42,85 @@ export default function Dashboard() {
   };
 
   const disconnectGoogleCalendar = async () => {
-    await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { method: 'POST', credentials: 'include' });
+    await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { 
+      method: 'POST', 
+      credentials: 'include' 
+    });
     setGoogleStatus('Not Connected');
-    alert('Disconnected from Google Calendar');
   };
 
   // Meeting join logic
+  const [joinError, setJoinError] = useState('');
+  const [joinSuccess, setJoinSuccess] = useState('');
+  const [joinStatus, setJoinStatus] = useState('idle');
+  const [joinId, setJoinId] = useState(null);
+
   const joinViaLink = async () => {
+    setJoinError('');
+    setJoinSuccess('');
+    setJoinStatus('processing');
+    setJoinId(null);
+    
     if (!meetingLink) {
-      alert('Please enter a meeting link');
+      setJoinError('Please enter a meeting link');
+      setJoinStatus('error');
       return;
     }
-    const response = await fetch(`${API_BASE_URL}/api/meetings/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ meetingLink }),
-    });
-    if (response.ok) alert('Joining meeting...');
-    else alert('Error joining meeting');
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/meetings/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ meetingLink }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setJoinStatus('processing');
+        setJoinSuccess('Starting to join meeting...');
+        setJoinId(data.joinId);
+        
+        // Start polling for status updates
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch(`${API_BASE_URL}/api/meetings/status?joinId=${data.joinId}`, {
+              credentials: 'include'
+            });
+            const statusData = await statusResponse.json();
+            
+            if (statusData.status === 'success') {
+              setJoinStatus('success');
+              setJoinSuccess('Successfully joined the meeting!');
+              clearInterval(pollInterval);
+            } else if (statusData.status === 'error') {
+              setJoinStatus('error');
+              setJoinError(statusData.error || 'Failed to join meeting');
+              clearInterval(pollInterval);
+            }
+          } catch (error) {
+            console.error('Error checking meeting status:', error);
+          }
+        }, 2000); // Poll every 2 seconds
+        
+        // Clear interval after 2 minutes (timeout)
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          if (joinStatus === 'processing') {
+            setJoinStatus('error');
+            setJoinError('Meeting join timed out. Please try again.');
+          }
+        }, 120000);
+      } else {
+        setJoinStatus('error');
+        setJoinError(data.error || 'Error joining meeting');
+      }
+    } catch (error) {
+      setJoinStatus('error');
+      setJoinError('Network error. Please try again.');
+      console.error('Error joining meeting:', error);
+    }
   };
 
   // Logout handler
@@ -82,89 +132,182 @@ export default function Dashboard() {
     window.location.href = '/';
   };
 
-  if (!user) return <p>Loading...</p>;
+  if (!user) return <div className="loading-screen">Loading...</div>;
 
   return (
-    <>
+    <div className="dashboard-container">
       {/* NAVBAR */}
-      <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div className="container">
-          <a className="navbar-brand" href="/">HIVE VOX <span className="version">v0.2</span></a>
-          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span className="navbar-toggler-icon"></span>
-          </button>
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav">
-              <li className="nav-item"><a className="nav-link active" href="/dashboard">Dashboard</a></li>
-              <li className="nav-item"><a className="nav-link" href="/upload">Upload</a></li>
-              <li className="nav-item"><a className="nav-link" href="/record">Record</a></li>
-            </ul>
+      <nav className="dashboard-nav">
+        <div className="nav-content">
+          <div className="brand">
+            <span className="logo">HIVE VOX</span>
+            <span className="version">v0.2</span>
           </div>
+          <div className="nav-links">
+            <a href="/dashboard" className="active">Dashboard</a>
+            <a href="/upload">Upload</a>
+            <a href="/record">Record</a>
+          </div>
+          <button className="logout-btn" onClick={handleLogout}>
+            <i className="bi bi-box-arrow-right"></i> Logout
+          </button>
         </div>
       </nav>
-      <div className="container mt-4">
 
-        {/* GOOGLE CALENDAR */}
-        <div className="meeting-controls mb-4">
-          <h3 className="mb-4">Google Calendar Integration</h3>
-          <div className="join-option">
-            <h5><i className="bi bi-google"></i> Connect Google Calendar</h5>
-            <div className="mb-3">
-              <p className="text-muted">Status: <span className={googleStatus === 'Connected' ? 'text-success' : 'text-danger'}>{googleStatus}</span></p>
+      {/* MAIN CONTENT */}
+      <main className="dashboard-content">
+        {/* WELCOME SECTION */}
+        <section className="welcome-section">
+          <h1>Welcome back, {user.email.split('@')[0]}!</h1>
+          <p className="subtitle">Ready to join your next meeting?</p>
+        </section>
+
+        {/* QUICK ACTIONS GRID */}
+        <div className="quick-actions-grid">
+          {/* GOOGLE CALENDAR CARD */}
+          <div className="action-card calendar-card">
+            <div className="card-header">
+              <i className="bi bi-calendar-check"></i>
+              <h3>Google Calendar</h3>
+              <span className={`status-badge ${googleStatus === 'Connected' ? 'connected' : 'disconnected'}`}>
+                {googleStatus}
+              </span>
             </div>
-            {googleStatus !== 'Connected' ? (
-              <button className="btn btn-primary" onClick={connectGoogleCalendar}>Connect Google Calendar</button>
-            ) : (
-              <button className="btn btn-danger" onClick={disconnectGoogleCalendar}>Disconnect</button>
-            )}
+            <div className="card-body">
+              <p>
+                {googleStatus === 'Connected' 
+                  ? 'Your calendar is connected and ready for meetings' 
+                  : 'Connect your calendar to automatically join meetings'}
+              </p>
+              {googleStatus !== 'Connected' ? (
+                <button 
+                  className="btn-connect"
+                  onClick={connectGoogleCalendar}
+                >
+                  <i className="bi bi-google"></i> Connect
+                </button>
+              ) : (
+                <button 
+                  className="btn-disconnect"
+                  onClick={disconnectGoogleCalendar}
+                >
+                  <i className="bi bi-plug"></i> Disconnect
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* MEETING CONTROLS */}
-        <div className="meeting-controls">
-          <h3 className="mb-4">Meeting Controls</h3>
-          <div className="join-option">
-            <h5><i className="bi bi-link-45deg"></i> Join via Link</h5>
-            <button className="btn btn-primary" onClick={() => setLinkFormVisible(v => !v)}>Join Meeting</button>
-            {linkFormVisible && (
-              <div className="meeting-form active">
-                <div className="mb-3">
-                  <label htmlFor="meetingLink" className="form-label">Meeting Link</label>
-                  <input type="url" className="form-control" id="meetingLink" value={meetingLink} onChange={e => setMeetingLink(e.target.value)} placeholder="https://meet.google.com/..." />
-                </div>
-                <button className="btn btn-success" onClick={joinViaLink}>Join Now</button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* RECENT CONVERSATIONS (placeholder for now) */}
-        <div className="conversations">
-          <h3 className="mb-4">Recent Conversations</h3>
-          <div className="row">
-            {conversations.length === 0 && (
-              <p className="text-muted">No conversations found.</p>
-            )}
-            {conversations.map(conversation => (
-              <div className="col-md-6 mb-4" key={conversation.id}>
-                <div className="card bg-dark text-light">
-                  <div className="card-body">
-                    <h5 className="card-title">{conversation.title}</h5>
-                    <p className="card-text">{conversation.summary}</p>
-                    <div className="d-flex justify-content-between align-items-center">
-                      <small className="text-muted">{conversation.date}</small>
-                      <a href={`/conversation/${conversation.id}`} className="btn btn-primary btn-sm">View Details</a>
+          {/* JOIN MEETING CARD */}
+          <div className="action-card join-card">
+            <div className="card-header">
+              <i className="bi bi-camera-video"></i>
+              <h3>Join Meeting</h3>
+            </div>
+            <div className="card-body">
+              {!linkFormVisible ? (
+                <>
+                  <p>Join a meeting instantly with a link</p>
+                  <button 
+                    className="btn-primary"
+                    onClick={() => setLinkFormVisible(true)}
+                  >
+                    <i className="bi bi-link-45deg"></i> Join via Link
+                  </button>
+                </>
+              ) : (
+                <div className="meeting-form">
+                  <div className="form-group">
+                    <label>Meeting Link</label>
+                    <input 
+                      type="url" 
+                      value={meetingLink}
+                      onChange={e => setMeetingLink(e.target.value)}
+                      placeholder="https://meet.google.com/..."
+                      disabled={joinStatus === 'processing'}
+                    />
+                  </div>
+                  <div className="form-actions">
+                    <button 
+                      className="btn-secondary"
+                      onClick={() => {
+                        setLinkFormVisible(false);
+                        setJoinStatus('idle');
+                        setJoinError('');
+                        setJoinSuccess('');
+                      }}
+                      disabled={joinStatus === 'processing'}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className={`btn-primary ${joinStatus === 'processing' ? 'loading' : ''}`}
+                      onClick={joinViaLink}
+                      disabled={joinStatus === 'processing'}
+                    >
+                      {joinStatus === 'processing' ? (
+                        <>
+                          <i className="bi bi-arrow-repeat spin"></i> Joining...
+                        </>
+                      ) : (
+                        'Join Now'
+                      )}
+                    </button>
+                  </div>
+                  {joinError && (
+                    <div className="alert alert-error">
+                      <i className="bi bi-exclamation-circle"></i>
+                      {joinError}
                     </div>
+                  )}
+                  {joinSuccess && (
+                    <div className="alert alert-success">
+                      <i className="bi bi-check-circle"></i>
+                      {joinSuccess}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RECENT CONVERSATIONS */}
+        <section className="conversations-section">
+          <div className="section-header">
+            <h2>Recent Conversations</h2>
+            <button className="btn-refresh">
+              <i className="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+          </div>
+          
+          {conversations.length === 0 ? (
+            <div className="empty-state">
+              <i className="bi bi-chat-square-text"></i>
+              <p>No conversations found</p>
+              <small>Your meeting transcripts will appear here</small>
+            </div>
+          ) : (
+            <div className="conversations-grid">
+              {conversations.map(conversation => (
+                <div className="conversation-card" key={conversation.id}>
+                  <div className="card-header">
+                    <h4>{conversation.title}</h4>
+                    <span className="date">{conversation.date}</span>
+                  </div>
+                  <div className="card-body">
+                    <p>{conversation.summary}</p>
+                  </div>
+                  <div className="card-footer">
+                    <a href={`/conversation/${conversation.id}`} className="btn-details">
+                      View Details <i className="bi bi-chevron-right"></i>
+                    </a>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* LOGOUT */}
-        <button id="logout-button" className="cta-button-secondary" onClick={handleLogout}>Logout</button>
-      </div>
-    </>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
+    </div>
   );
 }
