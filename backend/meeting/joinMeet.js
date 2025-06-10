@@ -238,6 +238,44 @@ async function dismissPopups(page) {
 async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
   let attempt = 0;
   let sessionProfilePath;
+  let browserInstance = null; // To keep track of the browser instance
+  let meetingStatusInterval = null; // To store the interval ID
+
+  async function checkMeetingEnded(page, browser, sessionProfilePath) {
+    try {
+      const pageText = await page.evaluate(() => document.body.innerText);
+      const rejoinButton = await page.$('button:has-text("Rejoin")');
+      const returnToHomeScreenButton = await page.$('button:has-text("Return to home screen")');
+
+      if (pageText.includes("You left the meeting") || rejoinButton || returnToHomeScreenButton) {
+        console.log('👋 Meeting ended or left, disconnecting bot.');
+        if (meetingStatusInterval) {
+          clearInterval(meetingStatusInterval);
+        }
+        if (browser) {
+          await browser.close();
+        }
+        if (sessionProfilePath) {
+          await cleanupProfile(sessionProfilePath);
+        }
+        return true; // Meeting has ended
+      }
+    } catch (error) {
+      console.log('⚠️ Error checking meeting status:', error.message);
+      // If there's an error (e.g., page closed), assume meeting ended and clean up
+      if (meetingStatusInterval) {
+        clearInterval(meetingStatusInterval);
+      }
+      if (browser) {
+        await browser.close();
+      }
+      if (sessionProfilePath) {
+        await cleanupProfile(sessionProfilePath);
+      }
+      return true; // Assume meeting ended on error
+    }
+    return false; // Meeting still active
+  }
 
   while (attempt < maxRetries) {
     attempt++;
@@ -245,6 +283,7 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
     
     try {
       const { browser, page, sessionProfilePath: newProfilePath } = await launchBotForMeeting(meetingUrl);
+      browserInstance = browser; // Store the browser instance
       sessionProfilePath = newProfilePath;
 
       console.log('🌐 Navigating to meeting:', meetingUrl);
@@ -276,15 +315,33 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
       await dismissPopups(page);
 
       await ensureMediaSettings(page);
-      setInterval(() => ensureMediaSettings(page), 5000);
+      
+      // Start checking for meeting end status
+      meetingStatusInterval = setInterval(async () => {
+        const ended = await checkMeetingEnded(page, browserInstance, sessionProfilePath);
+        if (ended) {
+          console.log('Process will now exit because the meeting has ended.');
+          process.exit(0); // Exit gracefully once meeting ends
+        }
+      }, 5000); // Check every 5 seconds
 
       console.log('✅ Successfully joined the meeting');
-      return { browser, page, sessionProfilePath };
+      return { browser: browserInstance, page, sessionProfilePath };
 
     } catch (error) {
       console.error(`❌ Error on attempt ${attempt}:`, error.message);
+      if (browserInstance) {
+        try {
+          await browserInstance.close();
+        } catch (closeError) {
+          console.error('⚠️ Error closing browser during retry:', closeError);
+        }
+      }
       if (sessionProfilePath) {
         await cleanupProfile(sessionProfilePath);
+      }
+      if (meetingStatusInterval) {
+        clearInterval(meetingStatusInterval);
       }
       
       if (attempt < maxRetries) {
@@ -305,10 +362,21 @@ if (require.main === module) {
     console.error("❌ No MEET_URL provided in environment variables");
     process.exit(1);
   } 
-  joinMeet(meetUrl).catch(error => {
-    console.error('❌ Error joining meeting:', error);
-    process.exit(1);
-  });
+  joinMeet(meetUrl)
+    .then(result => {
+      if (result && result.browser) {
+        console.log('🎉 Bot successfully joined the meeting and will remain active. Press Ctrl+C to exit.');
+        // Keep the process alive indefinitely
+        setInterval(() => {}, 1000);
+      } else {
+        console.error('❌ Failed to join the meeting after all retries.');
+        process.exit(1);
+      }
+    })
+    .catch(error => {
+      console.error('❌ Error joining meeting:', error);
+      process.exit(1);
+    });
 }
 
 module.exports = {
