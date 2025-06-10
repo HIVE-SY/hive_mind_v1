@@ -31,7 +31,7 @@ async function launchBotForMeeting(meetingUrl) {
   fs.copySync(masterProfilePath, sessionProfilePath);
 
   const browser = await puppeteer.launch({
-    headless: 'false',
+    headless: 'new',
     userDataDir: sessionProfilePath,
     args: [
       '--no-sandbox',
