@@ -138,6 +138,9 @@ async function handleJoinButton(page) {
       if (text.includes('ask to join') || text.includes('solicitar') || 
           ariaLabel.includes('ask to join') || ariaLabel.includes('solicitar')) {
         console.log('✅ Found "Ask to join" button');
+        await page.screenshot({ path: '/tmp/join_call_button_found.png' });
+        await uploadScreenshot('/tmp/join_call_button_found.png', 'meet-debug/join_call_button_found.png');
+          
         await element.click();
         await new Promise(resolve => setTimeout(resolve, 5000));
         
@@ -248,6 +251,14 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
       await page.goto(meetingUrl, { waitUntil: 'networkidle0', timeout: 60000 });
       await new Promise(resolve => setTimeout(resolve, 5000));
       
+      // Check for common error messages after navigation
+      const pageText = await page.evaluate(() => document.body.innerText);
+      if (pageText.includes("You can't join this video call") || pageText.includes("You can't create a meeting yourself")) {
+        await page.screenshot({ path: '/tmp/meet_error_page.png' });
+        await uploadScreenshot('/tmp/meet_error_page.png', 'meet-debug/meet_error_page.png');
+        throw new Error('Meeting access denied or invalid URL: Bot cannot join or create this meeting.');
+      }
+
       await page.screenshot({ path: '/tmp/meet_debug_full_load.png' });
       await uploadScreenshot('/tmp/meet_debug_full_load.png', 'meet-debug/meet_debug_full_load.png');
 
