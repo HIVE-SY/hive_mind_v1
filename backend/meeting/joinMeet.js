@@ -31,7 +31,7 @@ async function launchBotForMeeting(meetingUrl) {
   fs.copySync(masterProfilePath, sessionProfilePath);
 
   const browser = await puppeteer.launch({
-    headless: 'new',
+    headless: 'false',
     userDataDir: sessionProfilePath,
     args: [
       '--no-sandbox',
@@ -71,6 +71,7 @@ async function launchBotForMeeting(meetingUrl) {
     return { browser, page, sessionProfilePath };
   } catch (err) {
     await browser.close();
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Add a small delay before cleanup
     fs.removeSync(sessionProfilePath);
     throw err;
   }
@@ -167,6 +168,8 @@ async function handleJoinButton(page) {
       if (text.includes('ask to join') || text.includes('solicitar') || 
           ariaLabel.includes('ask to join') || ariaLabel.includes('solicitar')) {
         console.log('✅ Found "Ask to join" button by text content');
+        await page.screenshot({ path: '/tmp/join_call_button_found_fallback.png' });
+        await uploadScreenshot('/tmp/join_call_button_found_fallback.png', 'meet-debug/join_call_button_found_fallback.png');
         await button.click();
         await new Promise(resolve => setTimeout(resolve, 5000));
         
@@ -289,7 +292,13 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
       console.log('🌐 Navigating to meeting:', meetingUrl);
       await page.goto(meetingUrl, { waitUntil: 'networkidle0', timeout: 60000 });
       await new Promise(resolve => setTimeout(resolve, 5000));
-      
+
+      // Wait for navigation to complete after initial goto
+      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(e => {
+        console.log('⚠️ Navigation did not complete within timeout after initial goto, proceeding anyway:', e.message);
+      });
+      console.log('Current page URL after navigation:', page.url());
+
       // Check for common error messages after navigation
       const pageText = await page.evaluate(() => document.body.innerText);
       if (pageText.includes("You can't join this video call") || pageText.includes("You can't create a meeting yourself")) {
