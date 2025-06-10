@@ -143,14 +143,14 @@ async function handleJoinButton(page) {
         
         // Verify we're actually in the meeting
         try {
-          const inMeetingSelector = 'div[aria-label*="You\'re in the meeting"]';
-          await page.waitForSelector(inMeetingSelector, { timeout: 15000 });
-          console.log('✅ Successfully verified we are in the meeting');
+          const endCallButtonSelector = 'button[aria-label*="End call"], button[data-leave-meeting-button]';
+          await page.waitForSelector(endCallButtonSelector, { timeout: 20000 });
+          console.log('✅ Successfully verified we are in the meeting by finding the end call button');
           return true;
         } catch (error) {
-          console.log('⚠️ Could not verify we are in the meeting');
-          await page.screenshot({ path: '/tmp/not_joined.png' });
-          await uploadScreenshot('/tmp/not_joined.png', 'meet-debug/not_joined.png');
+          console.log('⚠️ Could not verify we are in the meeting (end call button not found)');
+          await page.screenshot({ path: '/tmp/not_joined_no_end_call_button.png' });
+          await uploadScreenshot('/tmp/not_joined_no_end_call_button.png', 'meet-debug/not_joined_no_end_call_button.png');
           return false;
         }
       }
@@ -169,14 +169,14 @@ async function handleJoinButton(page) {
         
         // Verify we're actually in the meeting
         try {
-          const inMeetingSelector = 'div[aria-label*="You\'re in the meeting"]';
-          await page.waitForSelector(inMeetingSelector, { timeout: 15000 });
-          console.log('✅ Successfully verified we are in the meeting');
+          const endCallButtonSelector = 'button[aria-label*="End call"], button[data-leave-meeting-button]';
+          await page.waitForSelector(endCallButtonSelector, { timeout: 20000 });
+          console.log('✅ Successfully verified we are in the meeting by finding the end call button');
           return true;
         } catch (error) {
-          console.log('⚠️ Could not verify we are in the meeting');
-          await page.screenshot({ path: '/tmp/not_joined.png' });
-          await uploadScreenshot('/tmp/not_joined.png', 'meet-debug/not_joined.png');
+          console.log('⚠️ Could not verify we are in the meeting (end call button not found)');
+          await page.screenshot({ path: '/tmp/not_joined_no_end_call_button.png' });
+          await uploadScreenshot('/tmp/not_joined_no_end_call_button.png', 'meet-debug/not_joined_no_end_call_button.png');
           return false;
         }
       }
@@ -218,6 +218,20 @@ async function ensureMediaSettings(page) {
   }
 }
 
+async function dismissPopups(page) {
+  try {
+    console.log('🔍 Looking for pop-ups to dismiss...');
+    const gotItButton = await page.$('button:has-text("Got it")');
+    if (gotItButton) {
+      console.log('✅ Found "Got it" button, clicking to dismiss pop-up.');
+      await gotItButton.click();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  } catch (error) {
+    console.log('⚠️ No dismissed pop-ups:', error.message);
+  }
+}
+
 async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
   let attempt = 0;
   let sessionProfilePath;
@@ -237,12 +251,18 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000) {
       await page.screenshot({ path: '/tmp/meet_debug_full_load.png' });
       await uploadScreenshot('/tmp/meet_debug_full_load.png', 'meet-debug/meet_debug_full_load.png');
 
+      // Dismiss any initial pop-ups
+      await dismissPopups(page);
+
       await handleNameInput(page);
       
       const joined = await handleJoinButton(page);
       if (!joined) {
         throw new Error('Failed to find join button');
       }
+      
+      // Dismiss any pop-ups after joining
+      await dismissPopups(page);
 
       await ensureMediaSettings(page);
       setInterval(() => ensureMediaSettings(page), 5000);
