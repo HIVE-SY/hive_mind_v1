@@ -140,7 +140,19 @@ async function handleJoinButton(page) {
         console.log('✅ Found "Ask to join" button');
         await element.click();
         await new Promise(resolve => setTimeout(resolve, 5000));
-        return true;
+        
+        // Verify we're actually in the meeting
+        try {
+          const inMeetingSelector = 'div[aria-label*="You\'re in the meeting"]';
+          await page.waitForSelector(inMeetingSelector, { timeout: 15000 });
+          console.log('✅ Successfully verified we are in the meeting');
+          return true;
+        } catch (error) {
+          console.log('⚠️ Could not verify we are in the meeting');
+          await page.screenshot({ path: '/tmp/not_joined.png' });
+          await uploadScreenshot('/tmp/not_joined.png', 'meet-debug/not_joined.png');
+          return false;
+        }
       }
     }
   } catch (error) {
@@ -154,7 +166,19 @@ async function handleJoinButton(page) {
         console.log('✅ Found "Ask to join" button by text content');
         await button.click();
         await new Promise(resolve => setTimeout(resolve, 5000));
-        return true;
+        
+        // Verify we're actually in the meeting
+        try {
+          const inMeetingSelector = 'div[aria-label*="You\'re in the meeting"]';
+          await page.waitForSelector(inMeetingSelector, { timeout: 15000 });
+          console.log('✅ Successfully verified we are in the meeting');
+          return true;
+        } catch (error) {
+          console.log('⚠️ Could not verify we are in the meeting');
+          await page.screenshot({ path: '/tmp/not_joined.png' });
+          await uploadScreenshot('/tmp/not_joined.png', 'meet-debug/not_joined.png');
+          return false;
+        }
       }
     }
   }
