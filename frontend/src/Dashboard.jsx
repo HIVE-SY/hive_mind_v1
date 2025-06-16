@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [linkFormVisible, setLinkFormVisible] = useState(false);
   const [meetingLink, setMeetingLink] = useState('');
   const [conversations, setConversations] = useState([]);
+  const [meetingEndedMsg, setMeetingEndedMsg] = useState('');
   const navigate = useNavigate();
 
   // Session check
@@ -54,12 +55,27 @@ export default function Dashboard() {
   const [joinSuccess, setJoinSuccess] = useState('');
   const [joinStatus, setJoinStatus] = useState('idle');
   const [joinId, setJoinId] = useState(null);
+  const [botIsInMeeting, setBotIsInMeeting] = useState(false);
+
+  // Dismiss meeting ended message on any user interaction
+  useEffect(() => {
+    if (!meetingEndedMsg) return;
+    const handler = () => setMeetingEndedMsg('');
+    window.addEventListener('click', handler);
+    window.addEventListener('keydown', handler);
+    return () => {
+      window.removeEventListener('click', handler);
+      window.removeEventListener('keydown', handler);
+    };
+  }, [meetingEndedMsg]);
 
   const joinViaLink = async () => {
     setJoinError('');
     setJoinSuccess('');
     setJoinStatus('processing');
     setJoinId(null);
+    setMeetingEndedMsg('');
+    setBotIsInMeeting(false);
     
     if (!meetingLink) {
       setJoinError('Please enter a meeting link');
@@ -90,26 +106,50 @@ export default function Dashboard() {
             });
             const statusData = await statusResponse.json();
             
-            if (statusData.status === 'success') {
+            if (statusData.status === 'joined') {
               setJoinStatus('success');
               setJoinSuccess('Successfully joined the meeting!');
+              setBotIsInMeeting(true);
+            } else if (statusData.status === 'ended') {
+              setJoinStatus('idle');
+              setJoinSuccess('');
+              setJoinError('');
+              setMeetingEndedMsg(statusData.message || 'The meeting has ended or the bot has left.');
+              setMeetingLink('');
+              setLinkFormVisible(false);
+              setBotIsInMeeting(false);
               clearInterval(pollInterval);
             } else if (statusData.status === 'error') {
               setJoinStatus('error');
               setJoinError(statusData.error || 'Failed to join meeting');
+              setJoinSuccess('');
+              setMeetingEndedMsg(statusData.error || 'The bot could not join or an error occurred.');
+              setMeetingLink('');
+              setLinkFormVisible(false);
+              setBotIsInMeeting(false);
               clearInterval(pollInterval);
             }
           } catch (error) {
             console.error('Error checking meeting status:', error);
-          }
-        }, 2000); // Poll every 2 seconds
-        
-        // Clear interval after 2 minutes (timeout)
-        setTimeout(() => {
-          clearInterval(pollInterval);
-          if (joinStatus === 'processing') {
             setJoinStatus('error');
-            setJoinError('Meeting join timed out. Please try again.');
+            setJoinError('Network error checking meeting status. Please try again.');
+            setMeetingEndedMsg('There was a network issue checking meeting status.');
+            setMeetingLink('');
+            setLinkFormVisible(false);
+            setBotIsInMeeting(false);
+            clearInterval(pollInterval);
+          }
+        }, 2000);
+        
+        setTimeout(() => {
+          if (joinStatus === 'processing' || joinStatus === 'success') {
+            clearInterval(pollInterval);
+            setJoinStatus('error');
+            setJoinError('Meeting status check timed out or bot disconnected unexpectedly.');
+            setMeetingEndedMsg('Meeting status check timed out or bot disconnected unexpectedly.');
+            setMeetingLink('');
+            setLinkFormVisible(false);
+            setBotIsInMeeting(false);
           }
         }, 120000);
       } else {
@@ -162,6 +202,7 @@ export default function Dashboard() {
           <p className="subtitle">Ready to join your next meeting?</p>
         </section>
 
+        
         {/* QUICK ACTIONS GRID */}
         <div className="quick-actions-grid">
           {/* GOOGLE CALENDAR CARD */}
@@ -223,7 +264,7 @@ export default function Dashboard() {
                       value={meetingLink}
                       onChange={e => setMeetingLink(e.target.value)}
                       placeholder="https://meet.google.com/..."
-                      disabled={joinStatus === 'processing'}
+                      disabled={joinStatus === 'processing' || botIsInMeeting}
                     />
                   </div>
                   <div className="form-actions">
@@ -234,19 +275,25 @@ export default function Dashboard() {
                         setJoinStatus('idle');
                         setJoinError('');
                         setJoinSuccess('');
+                        setBotIsInMeeting(false);
+                        setMeetingEndedMsg('');
                       }}
-                      disabled={joinStatus === 'processing'}
+                      disabled={joinStatus === 'processing' || botIsInMeeting}
                     >
                       Cancel
                     </button>
                     <button 
-                      className={`btn-primary ${joinStatus === 'processing' ? 'loading' : ''}`}
+                      className={`btn-primary ${joinStatus === 'processing' || botIsInMeeting ? 'loading' : ''}`}
                       onClick={joinViaLink}
-                      disabled={joinStatus === 'processing'}
+                      disabled={joinStatus === 'processing' || botIsInMeeting}
                     >
                       {joinStatus === 'processing' ? (
                         <>
                           <i className="bi bi-arrow-repeat spin"></i> Joining...
+                        </>
+                      ) : botIsInMeeting ? (
+                        <>
+                          <i className="bi bi-check-circle"></i> In Meeting
                         </>
                       ) : (
                         'Join Now'
@@ -259,12 +306,18 @@ export default function Dashboard() {
                       {joinError}
                     </div>
                   )}
-                  {joinSuccess && (
+                  {joinSuccess && !botIsInMeeting && (
                     <div className="alert alert-success">
                       <i className="bi bi-check-circle"></i>
                       {joinSuccess}
                     </div>
                   )}
+                </div>
+              )}
+              {meetingEndedMsg && (
+                <div className="alert alert-info" style={{ marginTop: '1em' }}>
+                  <i className="bi bi-info-circle"></i>
+                  {meetingEndedMsg}
                 </div>
               )}
             </div>

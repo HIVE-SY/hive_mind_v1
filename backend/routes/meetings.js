@@ -16,12 +16,29 @@ router.post('/join', async (req, res) => {
     const joinId = Date.now().toString();
     meetingStatus.set(joinId, { status: 'processing', error: null });
 
+    // Define the callback for when the bot exits the meeting
+    const onBotExitCallback = (message) => {
+      console.log(`Bot exit for joinId ${joinId}: ${message}`);
+      if (meetingStatus.has(joinId)) {
+        meetingStatus.set(joinId, { status: 'ended', message: message });
+        // Clean up status after a short delay (e.g., 1 minute) after ending
+        setTimeout(() => meetingStatus.delete(joinId), 60000);
+      }
+    };
+
     // Start the meeting join process
-    joinMeet(meetingLink)
-      .then(() => {
-        meetingStatus.set(joinId, { status: 'success', error: null });
-        // Clean up status after 5 minutes
-        setTimeout(() => meetingStatus.delete(joinId), 300000);
+    joinMeet(meetingLink, 3, 5000, onBotExitCallback)
+      .then(result => {
+        if (result) {
+          meetingStatus.set(joinId, { status: 'joined', error: null });
+          // Do not clear status immediately; it will be updated by onBotExitCallback
+        } else {
+          meetingStatus.set(joinId, { 
+            status: 'error', 
+            error: 'Failed to join meeting after all retries'
+          });
+          setTimeout(() => meetingStatus.delete(joinId), 300000); // Clear error status after 5 min
+        }
       })
       .catch(error => {
         console.error('❌ Error in meeting join process:', error);
@@ -29,8 +46,7 @@ router.post('/join', async (req, res) => {
           status: 'error', 
           error: error.message || 'Failed to join meeting'
         });
-        // Clean up status after 5 minutes
-        setTimeout(() => meetingStatus.delete(joinId), 300000);
+        setTimeout(() => meetingStatus.delete(joinId), 300000); // Clear error status after 5 min
       });
 
     // Immediately respond to the client that we're starting the process
