@@ -52,7 +52,12 @@ async function launchBotForMeeting(meetingUrl) {
       '--use-fake-ui-for-media-stream',
       `--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`,
       '--no-sandbox', // Required for some Linux environments in production
-      '--disable-setuid-sandbox' // Required for some Linux environments in production
+      '--disable-setuid-sandbox', // Required for some Linux environments in production
+      '--disable-dev-shm-usage', // Crucial for limited /dev/shm in containers
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--no-zygote',
+      '--single-process'
     ]
   });
 
