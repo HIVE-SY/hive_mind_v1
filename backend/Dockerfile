@@ -22,12 +22,10 @@ RUN npm ci
 # Copy application source
 COPY . .
 
-# Preload Puppeteer profile if used
-COPY meeting/bot-profile /app/meeting/bot-profile
-# Set permissions on the profile directory
-RUN chmod -R 777 /app/meeting/bot-profile
+# Copy templates and static files
 COPY templates ./templates
 COPY static ./static
+
 # Puppeteer environment variables
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
