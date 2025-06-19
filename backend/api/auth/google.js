@@ -1,10 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const { OAuth2Client } = require('google-auth-library');
-const { google } = require('googleapis');
-require('dotenv').config();
-const pool = require('../../database/affine/db')
+import express from 'express';
+import { OAuth2Client } from 'google-auth-library';
+import { google } from 'googleapis';
+import 'dotenv/config';
+import pool from '../../database/affine/db.js';
 
+const router = express.Router();
 
 // Initialize OAuth2 client
 const oauth2Client = new OAuth2Client(
@@ -14,7 +14,7 @@ const oauth2Client = new OAuth2Client(
 );
 
 // Store user tokens (in production, use a database)
-
+const userTokens = new Map();
 
 // Generate Google OAuth URL
 router.get('/connect', (req, res) => {
@@ -59,6 +59,12 @@ router.get('/callback', async (req, res) => {
       WHERE id = $4`,
       [tokens.access_token, tokens.refresh_token, expiry, req.session.user.id]
     );
+    
+
+    // Store tokens in memory for auto-join service
+    if (req.session.user && req.session.user.id) {
+      userTokens.set(req.session.user.id, tokens);
+    }
 
     // Optional: set a flag in session for UI
     req.session.googleConnected = true;
@@ -120,6 +126,10 @@ router.post('/disconnect', async (req, res) => {
       WHERE id = $1`,
       [userId]
     );
+    
+    // Remove tokens from memory
+    userTokens.delete(userId);
+    
     req.session.googleConnected = false; // for frontend UI, optional
     res.json({ success: true });
   } catch (err) {
@@ -176,8 +186,4 @@ router.get('/events', async (req, res) => {
   }
 });
 
-
-module.exports = {
-  router,
-  
-}; 
+export { router, userTokens }; 

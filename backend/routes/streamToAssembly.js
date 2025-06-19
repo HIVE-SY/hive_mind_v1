@@ -1,11 +1,13 @@
-const WebSocket = require('ws');
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config();
+import WebSocket from 'ws';
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const AAI_API_KEY = process.env.ASSEMBLYAI_API_KEY;
 
-// Connect to AssemblyAI’s real-time endpoint
+// Connect to AssemblyAI's real-time endpoint
 function connectToAssemblyAI() {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(`wss://api.assemblyai.com/v2/realtime/ws?sample_rate=16000`, {
@@ -54,4 +56,4 @@ const simulateStreamingAudio = (ws, audioPath) => {
     });
   };
 
-  module.exports = { connectToAssemblyAI, simulateStreamingAudio };
+export { connectToAssemblyAI, simulateStreamingAudio };

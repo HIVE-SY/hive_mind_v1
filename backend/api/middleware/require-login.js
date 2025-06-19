@@ -1,4 +1,4 @@
-module.exports = (req, res, next) => {
+const requireLogin = (req, res, next) => {
   console.log('🔒 Checking authentication...');
   console.log('📝 Session:', req.session);
   console.log('👤 Session user:', req.session?.user);
@@ -13,3 +13,5 @@ module.exports = (req, res, next) => {
   // For API requests, redirect to frontend and send 401
   return res.status(401).json({ error: 'Unauthorized. Please log in.' });
 };
+
+export default requireLogin;

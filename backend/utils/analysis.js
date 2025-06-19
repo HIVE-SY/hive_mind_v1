@@ -1,8 +1,9 @@
+import { OpenAI } from 'openai';
+
 let openai = null;
 
 // Only initialize OpenAI if the API key is available
 if (process.env.OPENAI_API_KEY) {
-  const { OpenAI } = require('openai');
   openai = new OpenAI();
 }
 
@@ -54,7 +55,7 @@ async function getAnalysisResults(analysisId) {
   }
 }
 
-module.exports = {
+export {
   startAnalysis,
   getAnalysisResults
 }; 

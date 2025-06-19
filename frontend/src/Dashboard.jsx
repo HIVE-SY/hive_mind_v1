@@ -56,6 +56,7 @@ export default function Dashboard() {
   const [joinStatus, setJoinStatus] = useState('idle');
   const [joinId, setJoinId] = useState(null);
   const [botIsInMeeting, setBotIsInMeeting] = useState(false);
+  const [botStatus, setBotStatus] = useState('');
 
   // Dismiss meeting ended message on any user interaction
   useEffect(() => {
@@ -106,11 +107,17 @@ export default function Dashboard() {
             });
             const statusData = await statusResponse.json();
             
-            if (statusData.status === 'joined') {
+            // Update botStatus for more granular feedback
+            if (statusData.status === 'processing') {
+              setBotStatus('joining');
+              setJoinSuccess('Joining call...');
+            } else if (statusData.status === 'joined') {
+              setBotStatus('joined');
               setJoinStatus('success');
-              setJoinSuccess('Successfully joined the meeting!');
+              setJoinSuccess('Bot joined the meeting!');
               setBotIsInMeeting(true);
             } else if (statusData.status === 'ended') {
+              setBotStatus('');
               setJoinStatus('idle');
               setJoinSuccess('');
               setJoinError('');
@@ -120,6 +127,7 @@ export default function Dashboard() {
               setBotIsInMeeting(false);
               clearInterval(pollInterval);
             } else if (statusData.status === 'error') {
+              setBotStatus('');
               setJoinStatus('error');
               setJoinError(statusData.error || 'Failed to join meeting');
               setJoinSuccess('');
@@ -130,6 +138,7 @@ export default function Dashboard() {
               clearInterval(pollInterval);
             }
           } catch (error) {
+            setBotStatus('');
             console.error('Error checking meeting status:', error);
             setJoinStatus('error');
             setJoinError('Network error checking meeting status. Please try again.');
@@ -171,6 +180,14 @@ export default function Dashboard() {
     });
     window.location.href = '/';
   };
+
+  // Fetch recent conversations (meetings)
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/meetings/recent-conversations`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => setConversations(data.conversations || []))
+      .catch(err => console.error('Failed to fetch recent conversations:', err));
+  }, []);
 
   if (!user) return <div className="loading-screen">Loading...</div>;
 
@@ -306,7 +323,7 @@ export default function Dashboard() {
                       {joinError}
                     </div>
                   )}
-                  {joinSuccess && !botIsInMeeting && (
+                  {joinSuccess && (
                     <div className="alert alert-success">
                       <i className="bi bi-check-circle"></i>
                       {joinSuccess}
@@ -327,33 +344,45 @@ export default function Dashboard() {
         {/* RECENT CONVERSATIONS */}
         <section className="conversations-section">
           <div className="section-header">
-            <h2>Recent Conversations</h2>
-            <button className="btn-refresh">
+            <h2>Recent Meetings</h2>
+            <button className="btn-refresh" onClick={() => {
+              fetch(`${API_BASE_URL}/api/meetings/recent-conversations`, { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => setConversations(data.conversations || []))
+                .catch(err => console.error('Failed to fetch recent conversations:', err));
+            }}>
               <i className="bi bi-arrow-clockwise"></i> Refresh
             </button>
           </div>
-          
           {conversations.length === 0 ? (
             <div className="empty-state">
               <i className="bi bi-chat-square-text"></i>
-              <p>No conversations found</p>
-              <small>Your meeting transcripts will appear here</small>
+              <p>No meetings found</p>
+              <small>Your meeting data will appear here</small>
             </div>
           ) : (
             <div className="conversations-grid">
-              {conversations.map(conversation => (
-                <div className="conversation-card" key={conversation.id}>
+              {conversations.map(convo => (
+                <div className="conversation-card" key={convo.botId}>
                   <div className="card-header">
-                    <h4>{conversation.title}</h4>
-                    <span className="date">{conversation.date}</span>
+                    <h4>Meeting ID: {convo.botId}</h4>
+                    <span className="date">{convo.speakers && convo.speakers.length > 0 ? `Speakers: ${convo.speakers.join(', ')}` : 'No speakers detected'}</span>
                   </div>
                   <div className="card-body">
-                    <p>{conversation.summary}</p>
+                    {convo.transcript && convo.transcript.length > 0 ? (
+                      <p>Transcript: {convo.transcript.map((seg, idx) => seg.text || seg.words?.map(w => w.word).join(' ') || '').join(' ')}</p>
+                    ) : (
+                      <p><em>No transcript</em></p>
+                    )}
                   </div>
                   <div className="card-footer">
-                    <a href={`/conversation/${conversation.id}`} className="btn-details">
-                      View Details <i className="bi bi-chevron-right"></i>
-                    </a>
+                    {convo.mp4 ? (
+                      <a href={convo.mp4} target="_blank" rel="noopener noreferrer" className="btn-details">
+                        View Recording <i className="bi bi-play-circle"></i>
+                      </a>
+                    ) : (
+                      <span className="no-link">No recording</span>
+                    )}
                   </div>
                 </div>
               ))}

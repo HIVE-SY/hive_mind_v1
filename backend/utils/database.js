@@ -1,4 +1,6 @@
-const { Pool } = require('pg');
+import pg from 'pg';
+const { Pool } = pg;
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 });
@@ -118,11 +120,27 @@ async function getAnalysis(analysisId) {
   }
 }
 
-module.exports = {
+/**
+ * Get all meetings from the database
+ * @returns {Promise<Array>} List of meetings
+ */
+async function getAllMeetings() {
+  try {
+    const query = 'SELECT * FROM meetings ORDER BY start_time DESC NULLS LAST LIMIT 50';
+    const result = await pool.query(query);
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting all meetings:', error);
+    throw error;
+  }
+}
+
+export {
   storeMeetingData,
   getMeetingData,
   storeTranscription,
   getTranscription,
   storeAnalysis,
-  getAnalysis
+  getAnalysis,
+  getAllMeetings
 }; 

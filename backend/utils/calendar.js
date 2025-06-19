@@ -1,6 +1,8 @@
-const { google } = require('googleapis');
-const { OAuth2Client } = require('google-auth-library');
-require('dotenv').config();
+import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Initialize OAuth2 client for the bot
 const botOAuth2Client = new OAuth2Client(
@@ -187,7 +189,7 @@ async function listUpcomingMeetings(userRefreshToken) {
   return listUserUpcomingMeetings(userRefreshToken);
 }
 
-module.exports = {
+export {
   listUserUpcomingMeetings,
   listBotUpcomingMeetings,
   createBotMeeting,

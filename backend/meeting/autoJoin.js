@@ -1,12 +1,12 @@
-const { google } = require('googleapis');
-const { OAuth2Client } = require('google-auth-library');
-const { listUserUpcomingMeetings, listBotUpcomingMeetings } = require('../utils/calendar');
-const { joinMeet } = require('./joinMeet');
-const nodemailer = require('nodemailer');
-const imap = require('imap-simple');
-const simpleParser = require('mailparser').simpleParser;
-const { userTokens } = require('../api/auth/google');
-require('dotenv').config();
+import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
+import { listUserUpcomingMeetings, listBotUpcomingMeetings } from '../utils/calendar.js';
+import { joinMeet } from './joinMeet.js';
+import nodemailer from 'nodemailer';
+import imap from 'imap-simple';
+import { simpleParser } from 'mailparser';
+import { userTokens } from '../api/auth/google.js';
+import 'dotenv/config';
 
 // Email configuration
 const emailConfig = {
@@ -201,7 +201,7 @@ async function startAutoJoinService() {
   console.log('✅ Auto join service started successfully');
 }
 
-module.exports = {
+export {
   startAutoJoinService,
   checkAndJoinUpcomingMeetings,
   checkEmailInvitations,

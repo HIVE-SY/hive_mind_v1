@@ -1,9 +1,10 @@
 // File: src/api/auth/magicLink.js
 
-const express = require('express');
-const crypto = require('crypto');
-const { Pool } = require('pg');
-const nodemailer = require('nodemailer');
+import express from 'express';
+import crypto from 'crypto';
+import { Pool } from 'pg';
+import nodemailer from 'nodemailer';
+
 const router = express.Router();
 
 const backendUrl = process.env.NODE_ENV === 'production'
@@ -113,4 +114,4 @@ router.get('/verify-link', async (req, res) => {
   });
 });
 
-module.exports = router;
+export default router;

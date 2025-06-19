@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import { storeMeetingData, getMeetingData, storeTranscription, getTranscription, storeAnalysis, getAnalysis } from '../utils/database.js';
+
 const router = express.Router();
-const { storeMeetingData, getMeetingData, storeTranscription, getTranscription, storeAnalysis, getAnalysis } = require('../utils/database');
 
 // Route to store meeting data
 router.post('/meetings', async (req, res) => {
@@ -98,4 +99,4 @@ router.get('/analysis/:analysisId', async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

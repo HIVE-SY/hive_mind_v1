@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import { startTranscription, getTranscriptionStatus } from '../utils/transcription.js';
+
 const router = express.Router();
-const { startTranscription, getTranscriptionStatus } = require('../utils/transcription');
 
 // Route to start a new transcription
 router.post('/start', async (req, res) => {
@@ -34,4 +35,4 @@ router.get('/status/:transcriptionId', async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

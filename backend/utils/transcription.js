@@ -1,4 +1,4 @@
-const { SpeechClient } = require('@google-cloud/speech');
+import { SpeechClient } from '@google-cloud/speech';
 const speech = new SpeechClient();
 
 /**
@@ -39,7 +39,7 @@ async function getTranscriptionStatus(transcriptionId) {
   }
 }
 
-module.exports = {
+export {
   startTranscription,
   getTranscriptionStatus
 }; 

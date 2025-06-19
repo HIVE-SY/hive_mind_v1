@@ -1,5 +1,9 @@
-const path = require('path');
-const { connectToAssemblyAI, simulateStreamingAudio } = require('./streamToAssembly');
+import path from 'path';
+import { connectToAssemblyAI, simulateStreamingAudio } from './streamToAssembly.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 (async () => {
   const ws = await connectToAssemblyAI();

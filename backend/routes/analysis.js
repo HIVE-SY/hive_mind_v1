@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import { startAnalysis, getAnalysisResults } from '../utils/analysis.js';
+
 const router = express.Router();
-const { startAnalysis, getAnalysisResults } = require('../utils/analysis');
 
 // Route to start a new analysis
 router.post('/start', async (req, res) => {
@@ -34,4 +35,4 @@ router.get('/results/:analysisId', async (req, res) => {
   }
 });
 
-module.exports = router; 
+export default router; 

@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import path from 'path';
+
 const router = express.Router();
-const path = require('path');
 
 // Landing page
 router.get('/', (req, res) => {
@@ -64,4 +65,4 @@ router.get('/conversation/:id', (req, res) => {
     });
 });
 
-module.exports = router; 
+export default router; 

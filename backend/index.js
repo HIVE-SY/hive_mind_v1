@@ -1,28 +1,29 @@
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
-const cookieParser = require('cookie-parser');
-const session = require('express-session');
-const meetingsRouter = require('./routes/meetings');
-const transcriptionRouter = require('./routes/transcription');
-const analysisRouter = require('./routes/analysis');
-const databaseRouter = require('./routes/database');
-const { router: googleAuthRouter } = require('./api/auth/google');
-const { startAutoJoinService } = require('./meeting/autoJoin');
-const requireLogin = require('./api/middleware/require-login');
-const { verify } = require('crypto');
-const logoutRouter = require('./api/auth/logout');
-const magicLinkRouter = require('./api/auth/magicLink');
-const pgSession = require('connect-pg-simple')(session);
-const pool = require('./database/affine/db')
+import express from 'express';
+import path from 'path';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import session from 'express-session';
+import { fileURLToPath } from 'url';
+import meetingsRouter from './routes/meetings.js';
+import transcriptionRouter from './routes/transcription.js';
+import analysisRouter from './routes/analysis.js';
+import databaseRouter from './routes/database.js';
+import { router as googleAuthRouter } from './api/auth/google.js';
+import { startAutoJoinService } from './meeting/autoJoin.js';
+import requireLogin from './api/middleware/require-login.js';
+import { verify } from 'crypto';
+import logoutRouter from './api/auth/logout.js';
+import magicLinkRouter from './api/auth/magicLink.js';
+import pgSession from 'connect-pg-simple';
+import pool from './database/affine/db.js';
 
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.set('trust proxy', 1);
 
 const PORT = process.env.PORT || 8000;
-
 
 // Middleware
 app.use(cookieParser());
@@ -46,7 +47,7 @@ app.use(cors({
 
 // Session middleware
 app.use(session({
-  store: new pgSession({
+  store: new (pgSession(session))({
     pool: pool,
     tableName: 'session'
   }),
@@ -65,18 +66,16 @@ app.use((req, res, next) => {
   const originalSetHeader = res.setHeader;
   res.setHeader = function (name, value) {
     if (name.toLowerCase() === 'set-cookie') {
-      console.log('Set-Cookie Header:', value); // <-- See if it's being sent!
+      console.log('Set-Cookie Header:', value);
     }
     return originalSetHeader.apply(this, arguments);
   };
   next();
 });
 
-
 // Set up EJS as the view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'templates'));
-
 
 // Serve the landing page
 app.get('/', (req, res) => {
@@ -93,20 +92,15 @@ app.get('/api/me', requireLogin, (req, res) => {
   }
 });
 
-
 app.use('/api/auth', magicLinkRouter);
 app.use('/api/auth/logout', logoutRouter);
 app.use('/api/auth/google', googleAuthRouter);
-// Middleware to verify Firebase ID token
-
 
 // Routes
 app.use('/api/meetings', meetingsRouter);
 app.use('/api/transcription', transcriptionRouter);
 app.use('/api/analysis', analysisRouter);
 app.use('/api/database', databaseRouter);
-
-
 
 // Serve the upload page
 app.get('/upload', requireLogin, (req, res) => {

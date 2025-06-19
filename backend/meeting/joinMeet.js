@@ -1,10 +1,14 @@
-const fs = require('fs-extra');
-const { v4: uuidv4 } = require('uuid');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const path = require('path');
-require('dotenv').config();
-const { Storage } = require('@google-cloud/storage');
+import fs from 'fs-extra';
+import { v4 as uuidv4 } from 'uuid';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import 'dotenv/config';
+import { Storage } from '@google-cloud/storage';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Add stealth plugin
 puppeteer.use(StealthPlugin());
@@ -51,14 +55,41 @@ async function launchBotForMeeting(meetingUrl) {
       '--window-size=1280,720',
       '--use-fake-ui-for-media-stream',
       `--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36`,
-      '--no-sandbox', // Required for some Linux environments in production
-      '--disable-setuid-sandbox', // Required for some Linux environments in production
-      '--disable-dev-shm-usage', // Crucial for limited /dev/shm in containers
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas',
       '--disable-gpu',
       '--no-zygote',
-      '--single-process'
-    ]
+      '--single-process',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-site-isolation-trials',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-extensions',
+      '--disable-sync',
+      '--disable-translate',
+      '--hide-scrollbars',
+      '--metrics-recording-only',
+      '--mute-audio',
+      '--no-first-run',
+      '--safebrowsing-disable-auto-update',
+      '--js-flags="--max-old-space-size=512"'
+    ],
+    ignoreHTTPSErrors: true,
+    timeout: 60000,
+    defaultViewport: {
+      width: 1280,
+      height: 720,
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      isLandscape: true,
+      isMobile: false
+    }
   });
 
   const context = browser.defaultBrowserContext();
@@ -66,18 +97,42 @@ async function launchBotForMeeting(meetingUrl) {
 
   try {
     const page = await browser.newPage();
+    
+    // Enhanced stealth measures
+    await page.evaluateOnNewDocument(() => {
+      // Override navigator properties
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      
+      // Add Chrome-specific properties
+      window.chrome = {
+        runtime: {},
+        loadTimes: function() {},
+        csi: function() {},
+        app: {}
+      };
+    });
+
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'en-US,en;q=0.9',
       'Sec-Fetch-Site': 'same-origin',
-      'Sec-Fetch-Mode': 'navigate'
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1'
     });
+
+    // Set default timeout
+    page.setDefaultTimeout(60000);
+    page.setDefaultNavigationTimeout(60000);
 
     return { browser, page, sessionProfilePath };
   } catch (err) {
     await browser.close();
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Add a small delay before cleanup
+    await new Promise(resolve => setTimeout(resolve, 1000));
     if (fs.existsSync(sessionProfilePath)) {
-      await fs.remove(sessionProfilePath); // Ensure async removal
+      await fs.remove(sessionProfilePath);
     }
     throw err;
   }
@@ -197,134 +252,100 @@ async function handleJoinButton(page) {
         }
       }
     } catch (error) {
-      console.log(`Selector ${selector} not found, trying next...`);
+      console.log(`⚠️ Error with selector ${selector}:`, error.message);
     }
   }
 
-  // Fallback to checking all buttons
-  for (const button of allButtons) {
-    const text = await page.evaluate(el => el.textContent.toLowerCase(), button);
-    const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', button);
-    
-    if (text.includes('ask to join') || text.includes('solicitar') || text.includes('join now') ||
-        ariaLabel.includes('ask to join') || ariaLabel.includes('solicitar') || ariaLabel.includes('join now')) {
-      console.log('✅ Found join button by text content');
-      await page.screenshot({ path: '/tmp/join_call_button_found_fallback.png' });
-      await uploadScreenshot('/tmp/join_call_button_found_fallback.png', 'meet-debug/join_call_button_found_fallback.png');
-      
-      // Wait for button to be clickable
-      await page.waitForFunction(
-        (btn) => {
-          return !btn.disabled && window.getComputedStyle(btn).display !== 'none';
-        },
-        { timeout: 5000 },
-        button
-      );
-      
-      await button.click();
-      console.log('⏳ Waiting for host to accept join request...');
-      await new Promise(resolve => setTimeout(resolve, 15000));
-      return await verifyMeetingJoin(page);
-    }
-  }
-  
+  console.log('❌ Could not find join button');
   return false;
 }
 
 async function ensureMediaSettings(page) {
   try {
-    const allButtons = await page.$$('button');
-    let micButton = null;
+    console.log('🔍 Checking media settings...');
     
-    for (const button of allButtons) {
-      const text = await page.evaluate(el => el.textContent.toLowerCase(), button);
-      const ariaLabel = await page.evaluate(el => el.getAttribute('aria-label')?.toLowerCase() || '', button);
+    // Wait for media settings dialog
+    await page.waitForSelector('div[role="dialog"]', { timeout: 5000 });
+    
+    // Check if microphone is muted
+    const isMicMuted = await page.evaluate(() => {
+      const micButton = document.querySelector('button[aria-label*="microphone" i]');
+      return micButton && micButton.getAttribute('aria-pressed') === 'true';
+    });
       
-      if (text.includes('mic') || ariaLabel.includes('mic') || ariaLabel.includes('microphone')) {
-        micButton = button;
-        break;
+    if (isMicMuted) {
+      console.log('🎤 Unmuting microphone...');
+      await page.click('button[aria-label*="microphone" i]');
       }
-    }
+    
+    // Check if camera is off
+    const isCameraOff = await page.evaluate(() => {
+      const cameraButton = document.querySelector('button[aria-label*="camera" i]');
+      return cameraButton && cameraButton.getAttribute('aria-pressed') === 'true';
+    });
 
-    if (micButton) {
-      const isUnmuted = await page.evaluate(button => {
-        const ariaLabel = button.getAttribute('aria-label')?.toLowerCase() || '';
-        const dataIsMuted = button.getAttribute('data-is-muted');
-        return ariaLabel.includes('unmuted') || ariaLabel.includes('on') || dataIsMuted === 'false';
-      }, micButton);
-
-      if (isUnmuted) {
-        console.log('🎙️ Mic is unmuted, muting...');
-        await micButton.click();
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+    if (isCameraOff) {
+      console.log('📹 Turning on camera...');
+      await page.click('button[aria-label*="camera" i]');
     }
+    
+    console.log('✅ Media settings configured');
   } catch (error) {
-    console.log('⚠️ Error setting media:', error.message);
+    console.log('⚠️ Error configuring media settings:', error.message);
   }
 }
 
 async function dismissPopups(page) {
   try {
-    console.log('🔍 Looking for pop-ups to dismiss...');
-    const gotItButton = await page.$('button:has-text("Got it")');
-    if (gotItButton) {
-      console.log('✅ Found "Got it" button, clicking to dismiss pop-up.');
-      await gotItButton.click();
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Dismiss any popups that might appear
+    const popupSelectors = [
+      'button[aria-label="Dismiss"]',
+      'button[aria-label="Close"]',
+      'button[aria-label="Got it"]',
+      'button[aria-label="No thanks"]'
+    ];
+    
+    for (const selector of popupSelectors) {
+      const elements = await page.$$(selector);
+      for (const element of elements) {
+        await element.click();
+        console.log(`✅ Dismissed popup with selector: ${selector}`);
+      }
     }
   } catch (error) {
-    console.log('⚠️ No dismissed pop-ups:', error.message);
+    console.log('⚠️ Error dismissing popups:', error.message);
   }
 }
 
-// Check if the bot is alone in the meeting (robust, language-independent, flexible to class changes)
 async function isBotAlone(page) {
-  return await page.evaluate(() => {
-    // Try to find the participant count badge in the bottom bar
-    // Look for the people icon button (aria-label may vary by language)
-    const peopleButton = Array.from(document.querySelectorAll('button,div'))
-      .find(el =>
-        el.getAttribute('aria-label') &&
-        (
-          el.getAttribute('aria-label').toLowerCase().includes('show everyone') ||
-          el.getAttribute('aria-label').toLowerCase().includes('personas') || // Spanish
-          el.getAttribute('aria-label').toLowerCase().includes('participants')
-        )
-      );
-    if (peopleButton) {
-      // Look for a badge or span/div with a number inside the button
-      const badge = peopleButton.querySelector('span,div');
-      if (badge && badge.textContent.trim() === '1') {
-        return true;
-      }
-    }
-    // Fallback: look for any badge with just '1' in the bottom bar
-    const badges = Array.from(document.querySelectorAll('span,div'))
-      .filter(el => el.textContent.trim() === '1');
-    if (badges.length > 0) {
-      return true;
-    }
+  try {
+    // Check if there are other participants in the meeting
+    const participants = await page.$$('div[data-self-name]');
+    return participants.length <= 1; // Only the bot is present
+  } catch (error) {
+    console.log('⚠️ Error checking if bot is alone:', error.message);
     return false;
-  });
+  }
 }
 
 async function checkMeetingEnded(page, browser, sessionProfilePath) {
   try {
-    const isInMeeting = await verifyMeetingJoin(page);
+    // Check if the meeting has ended
+    const isEnded = await page.evaluate(() => {
+      return document.querySelector('div[role="dialog"]')?.textContent.includes('Call ended') ||
+             document.querySelector('div[role="dialog"]')?.textContent.includes('Reunião encerrada');
+    });
     
-    if (!isInMeeting) {
-      console.log('👋 Meeting ended or left, cleaning up...');
-      if (meetingStatusInterval) clearInterval(meetingStatusInterval);
-      if (aloneCheckInterval) clearInterval(aloneCheckInterval);
-      if (browser) await browser.close();
-      if (sessionProfilePath) await cleanupProfile(sessionProfilePath);
+    if (isEnded) {
+      console.log('👋 Meeting has ended, cleaning up...');
+      await browser.close();
+      await cleanupProfile(sessionProfilePath);
       return true;
     }
     return false;
   } catch (error) {
-    console.log('⚠️ Error checking meeting status:', error.message);
-    return true; // Assume meeting ended on error
+    console.log('⚠️ Error checking if meeting ended:', error.message);
+    return false;
   }
 }
 
@@ -335,10 +356,9 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000, onBotExit
   let meetingStatusInterval = null;
   let aloneCheckInterval = null;
 
-  // Use NODE_ENV to determine if we're in development mode
   const isDev = process.env.NODE_ENV === 'dev';
-  const ALONE_CHECK_DELAY = isDev ? 10000 : 5 * 60 * 1000; // 10 seconds in dev mode, 5 minutes in production
-  const CHECK_INTERVAL = isDev ? 5000 : 15000; // 5 seconds in dev mode, 15 seconds in production
+  const ALONE_CHECK_DELAY = isDev ? 10000 : 5 * 60 * 1000;
+  const CHECK_INTERVAL = isDev ? 5000 : 15000;
 
   while (attempt < maxRetries) {
     attempt++;
@@ -362,7 +382,43 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000, onBotExit
       });
 
       console.log('🌐 Navigating to meeting:', meetingUrl);
-      await page.goto(meetingUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+      
+      // Enhanced navigation with retry logic
+      let navigationSuccess = false;
+      let navigationAttempts = 0;
+      const maxNavigationAttempts = 3;
+      
+      while (!navigationSuccess && navigationAttempts < maxNavigationAttempts) {
+        try {
+          // First try to navigate to a blank page
+          await page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Then navigate to the actual meeting URL
+          await page.goto(meetingUrl, { 
+            waitUntil: ['domcontentloaded', 'networkidle0'],
+            timeout: 60000 
+          });
+          
+          // Wait for the page to be fully loaded
+          await page.waitForFunction(() => {
+            return document.readyState === 'complete' && 
+                   !document.querySelector('div[role="progressbar"]') &&
+                   document.querySelector('body');
+          }, { timeout: 30000 });
+          
+          navigationSuccess = true;
+        } catch (navError) {
+          navigationAttempts++;
+          console.log(`Navigation attempt ${navigationAttempts} failed:`, navError.message);
+          if (navigationAttempts < maxNavigationAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            throw navError;
+          }
+        }
+      }
+
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Check for common error messages after navigation
@@ -460,36 +516,4 @@ async function joinMeet(meetingUrl, maxRetries = 3, retryDelay = 5000, onBotExit
   return false;
 }
 
-if (require.main === module) {
-  shouldExitProcess = true;
-  const meetUrl = process.env.MEET_URL;
-  const isDev = process.env.NODE_ENV === 'dev';
-  
-  if (!meetUrl) {
-    console.error("❌ No MEET_URL provided in environment variables");
-    process.exit(1);
-  } 
-  
-  joinMeet(meetUrl)
-    .then(result => {
-      if (result && result.browser) {
-        console.log('🎉 Bot successfully joined the meeting and will remain active. Press Ctrl+C to exit.');
-        if (isDev) {
-          console.log('🧪 Running in development mode - alone check will start in 10 seconds');
-        }
-        setInterval(() => {}, 1000);
-      } else {
-        console.error('❌ Failed to join the meeting after all retries.');
-        process.exit(1);
-      }
-    })
-    .catch(error => {
-      console.error('❌ Error joining meeting:', error);
-      process.exit(1);
-    });
-}
-
-module.exports = {
-  joinMeet,
-  cleanupProfile
-}; 
+export { joinMeet, cleanupProfile }; 
