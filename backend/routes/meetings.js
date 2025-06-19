@@ -13,84 +13,7 @@ const meetingLogs = new Map();
 const meetingTranscripts = new Map();
 
 // Webhook endpoint for Meeting BaaS notifications
-router.post('/webhook/bot', async (req, res) => {
-  console.log('📥 RAW WEBHOOK:', JSON.stringify(req.body));
-  console.log('🌐 Webhook received from:', req.get('host'), req.get('user-agent'));
-  
-  try {
-    const { event, data } = req.body;
-    
-    console.log(`📋 Processing webhook event: ${event}`);
-    
-    if (event === 'complete') {
-      const { bot_id, transcript, mp4, speakers, meeting_url } = data;
-      
-      console.log(`✅ Meeting completed for bot ${bot_id}`);
-      console.log(`🎥 MP4 URL: ${mp4}`);
-      console.log(`👥 Speakers: ${speakers?.join(', ') || 'Unknown'}`);
-      
-      if (transcript?.length > 0) {
-        console.log(`📝 Transcript received with ${transcript.length} segments`);
-        meetingTranscripts.set(bot_id, { transcript, mp4, speakers });
-      } else {
-        console.warn('⚠️ Empty transcript received. MP4:', mp4);
-        // Consider automatic retranscription here
-        const webhookUrl = `${req.protocol}://${req.get('host')}/api/meetings/webhook/bot`;
-        console.log('🔄 Attempting retranscription...');
-        await retranscribeBot(bot_id, 'Gladia', process.env.GLADIA_API_KEY, webhookUrl);
-      }
-      // Persist meeting data to DB (even if transcript is empty)
-      try {
-        await storeMeetingData(
-          bot_id, // meetingId
-          meeting_url || `Meeting ${bot_id}`, // title
-          null, // startTime (unknown)
-          null, // endTime (unknown)
-          speakers || [] // participants
-        );
-        console.log(`💾 Meeting data persisted for bot ${bot_id}`);
-      } catch (dbErr) {
-        console.error(`❌ Failed to persist meeting data for bot ${bot_id}:`, dbErr.message);
-      }
-    } else if (event === 'failed') {
-      const { bot_id, error, message } = data;
-      console.error(`❌ Bot ${bot_id} failed:`, error, message);
-    } else if (event === 'transcription_complete') {
-      const { bot_id } = data;
-      console.log(`✅ Transcription completed for bot ${bot_id}: ${JSON.stringify(req.body)}`);
-      // Fetch transcript from MeetingBaas API
-      try {
-        const apiKey = process.env.MEETING_BAAS_API_KEY;
-        const axios = (await import('axios')).default;
-        const response = await axios.get(
-          `https://api.meetingbaas.com/bots/meeting_data?bot_id=${bot_id}`,
-          { headers: { "x-meeting-baas-api-key": apiKey } }
-        );
-        const transcriptData = response.data?.bot_data?.transcripts;
-        const mp4 = response.data?.mp4;
-        const speakers = response.data?.bot_data?.bot?.speakers;
-        if (transcriptData && transcriptData.length > 0) {
-          meetingTranscripts.set(bot_id, { transcript: transcriptData, mp4, speakers });
-          console.log(`📝 Transcript fetched and stored for bot ${bot_id} (${transcriptData.length} segments)`);
-        } else {
-          console.warn(`⚠️ Transcript still empty after fetch for bot ${bot_id}`);
-        }
-      } catch (fetchErr) {
-        console.error(`❌ Failed to fetch transcript for bot ${bot_id}:`, fetchErr.response?.data || fetchErr.message);
-      }
-    } else if (event === 'bot.status_change') {
-      const { bot_id, status } = data;
-      console.log(`🔄 Bot ${bot_id} status changed: ${status.code} at ${status.created_at}`);
-    } else {
-      console.log(`ℹ️ Unknown webhook event: ${event}`);
-    }
-    
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('Webhook processing error:', error);
-    res.status(500).send('Internal error');
-  }
-});
+// (Remove the entire block for router.post('/webhook/bot', ...) and its logic)
 
 router.post('/join', async (req, res) => {
   const { meetingLink } = req.body;
@@ -115,7 +38,16 @@ router.post('/join', async (req, res) => {
         botId: result.botId,
         error: null 
       });
-      
+      // Save meeting with user email
+      const userEmail = req.session?.user?.email || null;
+      await storeMeetingData(
+        result.botId, // meetingId
+        meetingLink, // title (or use a better title if available)
+        null, // startTime
+        null, // endTime
+        [], // participants
+        userEmail
+      );
       res.status(200).json({ 
         message: 'Successfully joined meeting',
         status: 'joined',
@@ -182,7 +114,9 @@ router.get('/transcript', (req, res) => {
 // Add endpoint to fetch all recent conversations (even if transcript is empty)
 router.get('/recent-conversations', async (req, res) => {
   try {
-    const meetings = await getAllMeetings();
+    const userEmail = req.session?.user?.email;
+    if (!userEmail) return res.status(401).json({ error: 'Not logged in' });
+    const meetings = await getAllMeetings(userEmail);
     res.json({ conversations: meetings });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch meetings' });

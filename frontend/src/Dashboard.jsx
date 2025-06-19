@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [conversations, setConversations] = useState([]);
   const [meetingEndedMsg, setMeetingEndedMsg] = useState('');
   const navigate = useNavigate();
+  const [expandedId, setExpandedId] = useState(null);
 
   // Session check
   useEffect(() => {
@@ -361,31 +362,62 @@ export default function Dashboard() {
               <small>Your meeting data will appear here</small>
             </div>
           ) : (
-            <div className="conversations-grid">
-              {conversations.map(convo => (
-                <div className="conversation-card" key={convo.botId}>
-                  <div className="card-header">
-                    <h4>Meeting ID: {convo.botId}</h4>
-                    <span className="date">{convo.speakers && convo.speakers.length > 0 ? `Speakers: ${convo.speakers.join(', ')}` : 'No speakers detected'}</span>
+            <div className="conversations-list">
+              {conversations.map(convo => {
+                const id = convo.botId || convo.id;
+                const isExpanded = expandedId === id;
+                return (
+                  <div
+                    className={`conversation-card full-width${isExpanded ? ' expanded' : ''}`}
+                    key={id}
+                    onClick={() => setExpandedId(isExpanded ? null : id)}
+                    style={{ cursor: 'pointer', marginBottom: '1em', width: '100%' }}
+                  >
+                    <div className="card-header">
+                      <h4>Meeting ID: {id}</h4>
+                      <span className="date">
+                        {convo.speakers && convo.speakers.length > 0
+                          ? `Speakers: ${convo.speakers.join(', ')}`
+                          : 'No speakers detected'}
+                      </span>
+                    </div>
+                    <div className="card-body">
+                      {isExpanded ? (
+                        <>
+                          {convo.utterances && Array.isArray(convo.utterances) && convo.utterances.length > 0 ? (
+                            <div className="dialogue-transcript">
+                              {convo.utterances.map((utt, idx) => (
+                                <div className="utterance-line" key={idx}>
+                                  <span className="speaker-badge">{utt.speaker || 'Speaker'}</span>
+                                  <span className="utterance-text">{utt.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p><strong>Transcript:</strong> {convo.transcript || <em>No transcript</em>}</p>
+                          )}
+                          {convo.speakers && convo.speakers.length > 0 && (
+                            <p><strong>Speakers:</strong> {convo.speakers.join(', ')}</p>
+                          )}
+                          {convo.mp4 ? (
+                            <a href={convo.mp4} target="_blank" rel="noopener noreferrer" className="btn-details">
+                              View Recording <i className="bi bi-play-circle"></i>
+                            </a>
+                          ) : (
+                            <span className="no-link">No recording</span>
+                          )}
+                        </>
+                      ) : (
+                        <p>
+                          Transcript: {convo.transcript
+                            ? convo.transcript.slice(0, 100) + (convo.transcript.length > 100 ? '...' : '')
+                            : <em>No transcript</em>}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="card-body">
-                    {convo.transcript && convo.transcript.length > 0 ? (
-                      <p>Transcript: {convo.transcript.map((seg, idx) => seg.text || seg.words?.map(w => w.word).join(' ') || '').join(' ')}</p>
-                    ) : (
-                      <p><em>No transcript</em></p>
-                    )}
-                  </div>
-                  <div className="card-footer">
-                    {convo.mp4 ? (
-                      <a href={convo.mp4} target="_blank" rel="noopener noreferrer" className="btn-details">
-                        View Recording <i className="bi bi-play-circle"></i>
-                      </a>
-                    ) : (
-                      <span className="no-link">No recording</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>

@@ -16,6 +16,7 @@ import logoutRouter from './api/auth/logout.js';
 import magicLinkRouter from './api/auth/magicLink.js';
 import pgSession from 'connect-pg-simple';
 import pool from './database/affine/db.js';
+import webhooksRouter from './routes/webhooks.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +28,7 @@ const PORT = process.env.PORT || 8000;
 
 // Middleware
 app.use(cookieParser());
+app.use(webhooksRouter);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'static')));
 
@@ -97,6 +99,7 @@ app.use('/api/auth/logout', logoutRouter);
 app.use('/api/auth/google', googleAuthRouter);
 
 // Routes
+
 app.use('/api/meetings', meetingsRouter);
 app.use('/api/transcription', transcriptionRouter);
 app.use('/api/analysis', analysisRouter);
