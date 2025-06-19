@@ -112,6 +112,9 @@ export default function Dashboard() {
             if (statusData.status === 'joining') {
               setBotStatus('joining');
               setJoinSuccess('Joining call...');
+            } else if (statusData.status === 'in_waiting_room') {
+              setBotStatus('waiting');
+              setJoinSuccess(statusData.message || 'Bot is waiting to join the meeting...');
             } else if (statusData.status === 'in_call_recording') {
               setBotStatus('joined');
               setJoinStatus('success');

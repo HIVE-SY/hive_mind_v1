@@ -44,7 +44,24 @@ async function handleMeetingBaasEvent(payload) {
   const { event, data } = payload;
   console.log('MeetingBaaS event:', event, data);
   
-  if (event === 'in_call_recording') {
+  if (event === 'in_waiting_room') {
+    // Bot is waiting to join the meeting
+    const { bot_id } = data;
+    console.log(`Bot ${bot_id} is in waiting room`);
+    
+    // Update meeting status to indicate bot is waiting
+    global.meetingStatus = global.meetingStatus || new Map();
+    for (const [joinId, status] of global.meetingStatus.entries()) {
+      if (status.botId === bot_id) {
+        global.meetingStatus.set(joinId, { 
+          ...status, 
+          status: 'in_waiting_room',
+          message: 'Bot is waiting to join the meeting...'
+        });
+        break;
+      }
+    }
+  } else if (event === 'in_call_recording') {
     // Bot has joined and started recording
     const { bot_id } = data;
     console.log(`Bot ${bot_id} has joined and started recording`);
