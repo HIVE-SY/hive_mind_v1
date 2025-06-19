@@ -129,7 +129,7 @@ async function getAnalysis(analysisId) {
 async function getAllMeetings(userEmail) {
   try {
     const query = `
-      SELECT m.*, t.text AS transcript
+      SELECT m.*, t.text AS transcript, t.utterances, t.audio_url
       FROM meetings m
       LEFT JOIN transcriptions t ON m.id = t.meeting_id
       WHERE m.user_email = $1
@@ -151,16 +151,17 @@ async function getAllMeetings(userEmail) {
  * @param {string} text The transcription text
  * @param {string} userEmail The email of the user who owns the meeting
  * @param {Array} utterances The utterances array (speaker-labeled segments)
+ * @param {string} audioUrl The URL of the audio file
  */
-async function storeGladiaTranscription(gladiaTxId, botId, text, userEmail, utterances) {
+async function storeGladiaTranscription(gladiaTxId, botId, text, userEmail, utterances, audioUrl) {
   try {
     const query = `
-      INSERT INTO transcriptions (id, meeting_id, text, gladia_tx_id, bot_id, user_email, utterances)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO transcriptions (id, meeting_id, text, gladia_tx_id, bot_id, user_email, utterances, audio_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (id) DO UPDATE
-      SET text = $3, gladia_tx_id = $4, bot_id = $5, user_email = $6, utterances = $7
+      SET text = $3, gladia_tx_id = $4, bot_id = $5, user_email = $6, utterances = $7, audio_url = $8
     `;
-    await pool.query(query, [gladiaTxId, botId, text, gladiaTxId, botId, userEmail, JSON.stringify(utterances)]);
+    await pool.query(query, [gladiaTxId, botId, text, gladiaTxId, botId, userEmail, JSON.stringify(utterances), audioUrl]);
   } catch (error) {
     console.error('Error storing Gladia transcription:', error);
     throw error;

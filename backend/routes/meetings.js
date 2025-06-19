@@ -5,8 +5,8 @@ import { storeMeetingData, getAllMeetings } from '../utils/database.js';
 
 const router = express.Router();
 
-// Store meeting join status
-const meetingStatus = new Map();
+// Store meeting join status - make it global so webhook can access it
+global.meetingStatus = global.meetingStatus || new Map();
 // Store transcriptions/logs per joinId
 const meetingLogs = new Map();
 // Store final transcripts/mp4 per botId (for demo, in-memory)
@@ -24,7 +24,7 @@ router.post('/join', async (req, res) => {
   try {
     // Generate a unique ID for this join attempt
     const joinId = Date.now().toString();
-    meetingStatus.set(joinId, { status: 'processing', error: null });
+    global.meetingStatus.set(joinId, { status: 'processing', error: null });
 
     // Construct base server URL for webhook
     const baseServerUrl = `${req.protocol}://${req.get('host')}`;
@@ -33,32 +33,33 @@ router.post('/join', async (req, res) => {
     const result = await joinMeeting(meetingLink, baseServerUrl);
     
     if (result.success) {
-      meetingStatus.set(joinId, { 
-        status: 'joined', 
+      global.meetingStatus.set(joinId, { 
+        status: 'joining', 
         botId: result.botId,
-        error: null 
+        error: null,
+        message: 'Joining meeting...'
       });
       // Save meeting with user email
       const userEmail = req.session?.user?.email || null;
       await storeMeetingData(
         result.botId, // meetingId
         meetingLink, // title (or use a better title if available)
-        null, // startTime
+        new Date().toISOString(), // startTime (bot join time)
         null, // endTime
         [], // participants
         userEmail
       );
       res.status(200).json({ 
-        message: 'Successfully joined meeting',
-        status: 'joined',
+        message: 'Starting to join meeting...',
+        status: 'joining',
         joinId
       });
     } else {
-      meetingStatus.set(joinId, { 
+      global.meetingStatus.set(joinId, { 
         status: 'error', 
         error: result.error || 'Failed to join meeting'
       });
-      setTimeout(() => meetingStatus.delete(joinId), 300000);
+      setTimeout(() => global.meetingStatus.delete(joinId), 300000);
       res.status(500).json({ 
         error: result.error || 'Failed to join meeting'
       });
@@ -80,7 +81,7 @@ router.get('/status', (req, res) => {
     return res.status(400).json({ error: 'Join ID is required' });
   }
 
-  const status = meetingStatus.get(joinId);
+  const status = global.meetingStatus.get(joinId);
   if (!status) {
     return res.status(404).json({ error: 'Join attempt not found' });
   }

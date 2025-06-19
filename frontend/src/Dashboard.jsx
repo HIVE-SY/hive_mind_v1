@@ -109,13 +109,13 @@ export default function Dashboard() {
             const statusData = await statusResponse.json();
             
             // Update botStatus for more granular feedback
-            if (statusData.status === 'processing') {
+            if (statusData.status === 'joining') {
               setBotStatus('joining');
               setJoinSuccess('Joining call...');
-            } else if (statusData.status === 'joined') {
+            } else if (statusData.status === 'in_call_recording') {
               setBotStatus('joined');
               setJoinStatus('success');
-              setJoinSuccess('Bot joined the meeting!');
+              setJoinSuccess(statusData.message || 'Bot joined the meeting!');
               setBotIsInMeeting(true);
             } else if (statusData.status === 'ended') {
               setBotStatus('');
@@ -370,15 +370,23 @@ export default function Dashboard() {
                   <div
                     className={`conversation-card full-width${isExpanded ? ' expanded' : ''}`}
                     key={id}
-                    onClick={() => setExpandedId(isExpanded ? null : id)}
-                    style={{ cursor: 'pointer', marginBottom: '1em', width: '100%' }}
+                    style={{ marginBottom: '1em', width: '100%' }}
                   >
-                    <div className="card-header">
+                    <div 
+                      className="card-header"
+                      onClick={() => setExpandedId(isExpanded ? null : id)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <h4>Meeting ID: {id}</h4>
                       <span className="date">
-                        {convo.speakers && convo.speakers.length > 0
-                          ? `Speakers: ${convo.speakers.join(', ')}`
+                        {convo.utterances && Array.isArray(convo.utterances) && convo.utterances.length > 0
+                          ? `${convo.utterances.length} messages from ${new Set(convo.utterances.map(u => u.speaker)).size} speaker(s)`
                           : 'No speakers detected'}
+                        {convo.start_time && (
+                          <span className="meeting-time">
+                            • {new Date(convo.start_time).toLocaleString()}
+                          </span>
+                        )}
                       </span>
                     </div>
                     <div className="card-body">
@@ -386,25 +394,59 @@ export default function Dashboard() {
                         <>
                           {convo.utterances && Array.isArray(convo.utterances) && convo.utterances.length > 0 ? (
                             <div className="dialogue-transcript">
-                              {convo.utterances.map((utt, idx) => (
-                                <div className="utterance-line" key={idx}>
-                                  <span className="speaker-badge">{utt.speaker || 'Speaker'}</span>
-                                  <span className="utterance-text">{utt.text}</span>
-                                </div>
-                              ))}
+                              {convo.utterances.reduce((acc, utt, idx) => {
+                                // If it's the first message or speaker changed from previous message
+                                if (idx === 0 || utt.speaker !== convo.utterances[idx - 1].speaker) {
+                                  // Start a new group
+                                  acc.push({
+                                    speaker: utt.speaker,
+                                    text: utt.text,
+                                    start_time: utt.start_time || utt.start || utt.timestamp
+                                  });
+                                } else {
+                                  // Concatenate with the previous message from same speaker
+                                  acc[acc.length - 1].text += ' ' + utt.text;
+                                }
+                                return acc;
+                              }, []).map((group, idx) => {
+                                // Format timestamp
+                                const formatTime = (timestamp) => {
+                                  if (!timestamp) return '';
+                                  const seconds = typeof timestamp === 'number' ? timestamp : parseFloat(timestamp);
+                                  if (isNaN(seconds)) return '';
+                                  const minutes = Math.floor(seconds / 60);
+                                  const remainingSeconds = Math.floor(seconds % 60);
+                                  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+                                };
+
+                                return (
+                                  <div className="utterance-line" key={idx}>
+                                    <span className="speaker-badge">
+                                      {typeof group.speaker === 'number' ? `Speaker ${group.speaker}` : 'Unknown Speaker'}
+                                    </span>
+                                    <span className="utterance-text">
+                                      {group.text}
+                                    </span>
+                                    {group.start_time && (
+                                      <span className="timestamp">
+                                        {formatTime(group.start_time)}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           ) : (
                             <p><strong>Transcript:</strong> {convo.transcript || <em>No transcript</em>}</p>
                           )}
-                          {convo.speakers && convo.speakers.length > 0 && (
-                            <p><strong>Speakers:</strong> {convo.speakers.join(', ')}</p>
-                          )}
-                          {convo.mp4 ? (
-                            <a href={convo.mp4} target="_blank" rel="noopener noreferrer" className="btn-details">
-                              View Recording <i className="bi bi-play-circle"></i>
-                            </a>
+                          {convo.audio_url ? (
+                            <div className="audio-section">
+                              <a href={convo.audio_url} target="_blank" rel="noopener noreferrer" className="btn-details">
+                                <i className="bi bi-play-circle"></i> Play Audio Recording
+                              </a>
+                            </div>
                           ) : (
-                            <span className="no-link">No recording</span>
+                            <span className="no-link">No audio recording available</span>
                           )}
                         </>
                       ) : (

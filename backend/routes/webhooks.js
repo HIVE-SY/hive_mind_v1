@@ -42,7 +42,28 @@ router.post('/api/meetings/webhook/bot', express.raw({ type: '*/*' }), async (re
 // Handler for MeetingBaaS events
 async function handleMeetingBaasEvent(payload) {
   const { event, data } = payload;
-  if (event === 'complete') {
+  console.log('MeetingBaaS event:', event, data);
+  
+  if (event === 'in_call_recording') {
+    // Bot has joined and started recording
+    const { bot_id } = data;
+    console.log(`Bot ${bot_id} has joined and started recording`);
+    
+    // Update meeting status to indicate bot is in call
+    // We'll need to find the joinId for this bot_id
+    // For now, we'll store this information in a way that can be retrieved
+    global.meetingStatus = global.meetingStatus || new Map();
+    for (const [joinId, status] of global.meetingStatus.entries()) {
+      if (status.botId === bot_id) {
+        global.meetingStatus.set(joinId, { 
+          ...status, 
+          status: 'in_call_recording',
+          message: 'Bot joined the meeting and started recording!'
+        });
+        break;
+      }
+    }
+  } else if (event === 'complete') {
     const { bot_id, mp4, wav } = data;
     // Prefer wav, fallback to mp4
     const audioUrl = wav || mp4;
@@ -93,6 +114,8 @@ async function handleGladiaEvent(payload) {
       botId,
       gladiaTxId: txId,
       transcript: data.result?.transcription?.full_transcript || '',
+      utterances: data.result?.transcription?.utterances || [],
+      audioUrl: data.file?.source || data.request_params?.audio_url,
       meetingId: botId // for compatibility with your schema
     });
     console.log(`Saved Gladia transcript for bot ${botId}`);
@@ -100,7 +123,7 @@ async function handleGladiaEvent(payload) {
 }
 
 // Save transcript to DB, idempotent on gladia_tx_id
-async function saveGladiaTranscript({ botId, gladiaTxId, transcript, meetingId }) {
+async function saveGladiaTranscript({ botId, gladiaTxId, transcript, utterances, audioUrl, meetingId }) {
   // Look up user email from meetings table
   let userEmail = null;
   let meeting = null;
@@ -114,7 +137,7 @@ async function saveGladiaTranscript({ botId, gladiaTxId, transcript, meetingId }
     console.warn('Received Gladia webhook for unknown botId:', botId, 'Ignoring.');
     return;
   }
-  await storeGladiaTranscription(gladiaTxId, botId, transcript, userEmail);
+  await storeGladiaTranscription(gladiaTxId, botId, transcript, userEmail, utterances, audioUrl);
 }
 
 export default router; 
