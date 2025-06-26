@@ -33,7 +33,7 @@ app.use(cookieParser());
 app.use(webhooksRouter);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'static')));
-
+ 
 // Enable CORS for frontend dev server
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://hive-mind-frontend-259028418114.us-central1.run.app']
