@@ -49,24 +49,7 @@ app.use(cors({
   credentials: true
 }));
 
-// Session middleware (commented out for Supabase-only auth)
-/*
-app.use(session({
-  store: new (pgSession(session))({
-    pool: pool,
-    tableName: 'session'
-  }),
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 24 * 60 * 60 * 1000,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    ...(process.env.NODE_ENV === 'production' ? { domain: 'hive-mind-v1-api-259028418114.us-central1.run.app' } : {})
-  }
-}));
-*/
+
 
 app.use((req, res, next) => {
   const originalSetHeader = res.setHeader;
