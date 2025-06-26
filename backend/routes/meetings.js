@@ -2,7 +2,6 @@ import express from 'express';
 import { joinMeeting, retranscribeBot } from '../services/meetingBaas.js';
 import { storeMeetingData, getAllMeetings } from '../utils/database.js';
 
-
 const router = express.Router();
 
 // Store meeting join status - make it global so webhook can access it
@@ -16,6 +15,9 @@ const meetingTranscripts = new Map();
 // (Remove the entire block for router.post('/webhook/bot', ...) and its logic)
 
 router.post('/join', async (req, res) => {
+  if (!req.user || !req.user.email) {
+    return res.status(401).json({ error: 'Not logged in' });
+  }
   const { meetingLink } = req.body;
   if (!meetingLink) {
     return res.status(400).json({ error: 'Meeting link is required' });
@@ -39,15 +41,14 @@ router.post('/join', async (req, res) => {
         error: null,
         message: 'Joining meeting...'
       });
-      // Save meeting with user email
-      const userEmail = req.session?.user?.email || null;
+      // Save meeting with Supabase user email
       await storeMeetingData(
         result.botId, // meetingId
         meetingLink, // title (or use a better title if available)
         new Date().toISOString(), // startTime (bot join time)
         null, // endTime
         [], // participants
-        userEmail
+        req.user.email
       );
       res.status(200).json({ 
         message: 'Starting to join meeting...',
@@ -112,13 +113,15 @@ router.get('/transcript', (req, res) => {
   res.json(data);
 });
 
-// Add endpoint to fetch all recent conversations (even if transcript is empty)
-router.get('/recent-conversations', async (req, res) => {
+// Add endpoint to fetch all recent conversations (user-specific)
+router.get('/conversations', async (req, res) => {
+  console.log('🔔 /api/meetings/conversations route hit');
+  if (!req.user || !req.user.email) {
+    return res.status(401).json({ error: 'Not logged in' });
+  }
   try {
-    const userEmail = req.session?.user?.email;
-    if (!userEmail) return res.status(401).json({ error: 'Not logged in' });
-    const meetings = await getAllMeetings(userEmail);
-    res.json({ conversations: meetings });
+    const meetings = await getAllMeetings(req.user.email);
+    res.json(meetings);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch meetings' });
   }

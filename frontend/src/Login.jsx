@@ -1,35 +1,36 @@
 import { useState } from "react";
+import { supabase } from './config/supabase.js';
 import './login.css';
-
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://hive-mind-v1-api-259028418114.us-central1.run.app'
-  : 'http://localhost:8000';
-
 
 export default function Login() {
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e) => {
+  const handleMagicLinkLogin = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setMessage("");
+    
     const email = e.target.email.value;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/request-link`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify({ email }),
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
       });
- 
-      const data = await res.json();
-      if (res.ok) {
-        setMessage("✅ Magic link sent to your email!");
+
+      if (error) {
+        setMessage(`❌ Error: ${error.message}`);
       } else {
-        setMessage(`❌ Error: ${data.error || "Something went wrong"}`);
+        setMessage("✅ Magic link sent to your email!");
       }
     } catch (err) {
       console.error("Login error:", err);
       setMessage("❌ Request failed. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -39,10 +40,11 @@ export default function Login() {
         <h1 className="login-title">
           <span className="highlight">Hive Mind</span> Login
         </h1>
-        <p className="login-subtext">
-          Enter your email to receive a sign-in link
-        </p>
-        <form onSubmit={handleLogin} className="login-form">
+        
+        <form onSubmit={handleMagicLinkLogin} className="login-form">
+          <p className="login-subtext">
+            Enter your email to receive a sign-in link
+          </p>
           <input
             name="email"
             type="email"
@@ -50,10 +52,11 @@ export default function Login() {
             required
             className="login-input"
           />
-          <button type="submit" className="cta-button">
-            Send Magic Link
+          <button type="submit" className="cta-button" disabled={isLoading}>
+            {isLoading ? "Sending..." : "Send Magic Link"}
           </button>
         </form>
+        
         {message && <p className="login-feedback">{message}</p>}
       </div>
     </div>

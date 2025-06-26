@@ -1,9 +1,4 @@
-import pg from 'pg';
-const { Pool } = pg;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
+import { supabase } from '../config/supabase.js';
 
 /**
  * Store meeting data in the database
@@ -12,7 +7,7 @@ const pool = new Pool({
  * @param {string} startTime The start time of the meeting
  * @param {string} endTime The end time of the meeting
  * @param {Array} participants The list of participants
- * @param {string} userEmail The email of the user who owns the meeting
+ * @param {string} userEmail The email of the user who owns the meeting (from req.user.email, Supabase)
  */
 async function storeMeetingData(meetingId, title, startTime, endTime, participants, userEmail) {
   try {
@@ -22,7 +17,7 @@ async function storeMeetingData(meetingId, title, startTime, endTime, participan
       ON CONFLICT (id) DO UPDATE
       SET title = $2, start_time = $3, end_time = $4, participants = $5, user_email = $6
     `;
-    await pool.query(query, [meetingId, title, startTime, endTime, participants, userEmail]);
+    await supabase.rpc('sql', { query, params: [meetingId, title, startTime, endTime, participants, userEmail] });
   } catch (error) {
     console.error('Error storing meeting data:', error);
     throw error;
@@ -37,8 +32,8 @@ async function storeMeetingData(meetingId, title, startTime, endTime, participan
 async function getMeetingData(meetingId) {
   try {
     const query = 'SELECT * FROM meetings WHERE id = $1';
-    const result = await pool.query(query, [meetingId]);
-    return result.rows[0];
+    const result = await supabase.from('meetings').select().eq('id', meetingId);
+    return result.data[0];
   } catch (error) {
     console.error('Error getting meeting data:', error);
     throw error;
@@ -61,7 +56,13 @@ async function storeTranscription(transcriptionId, meetingId, text, startTime, e
       ON CONFLICT (id) DO UPDATE
       SET text = $3, start_time = $4, end_time = $5
     `;
-    await pool.query(query, [transcriptionId, meetingId, text, startTime, endTime]);
+    await supabase.from('transcriptions').insert({
+      id: transcriptionId,
+      meeting_id: meetingId,
+      text: text,
+      start_time: startTime,
+      end_time: endTime
+    }).onConflict('id').merge();
   } catch (error) {
     console.error('Error storing transcription:', error);
     throw error;
@@ -76,8 +77,8 @@ async function storeTranscription(transcriptionId, meetingId, text, startTime, e
 async function getTranscription(transcriptionId) {
   try {
     const query = 'SELECT * FROM transcriptions WHERE id = $1';
-    const result = await pool.query(query, [transcriptionId]);
-    return result.rows[0];
+    const result = await supabase.from('transcriptions').select().eq('id', transcriptionId);
+    return result.data[0];
   } catch (error) {
     console.error('Error getting transcription:', error);
     throw error;
@@ -98,7 +99,11 @@ async function storeAnalysis(analysisId, transcriptionId, results) {
       ON CONFLICT (id) DO UPDATE
       SET results = $3
     `;
-    await pool.query(query, [analysisId, transcriptionId, results]);
+    await supabase.from('analysis').insert({
+      id: analysisId,
+      transcription_id: transcriptionId,
+      results: results
+    }).onConflict('id').merge();
   } catch (error) {
     console.error('Error storing analysis:', error);
     throw error;
@@ -113,8 +118,8 @@ async function storeAnalysis(analysisId, transcriptionId, results) {
 async function getAnalysis(analysisId) {
   try {
     const query = 'SELECT * FROM analysis WHERE id = $1';
-    const result = await pool.query(query, [analysisId]);
-    return result.rows[0];
+    const result = await supabase.from('analysis').select().eq('id', analysisId);
+    return result.data[0];
   } catch (error) {
     console.error('Error getting analysis:', error);
     throw error;
@@ -136,8 +141,8 @@ async function getAllMeetings(userEmail) {
       ORDER BY m.start_time DESC NULLS LAST
       LIMIT 50
     `;
-    const result = await pool.query(query, [userEmail]);
-    return result.rows;
+    const result = await supabase.from('meetings').select('*').eq('user_email', userEmail).order('start_time', { ascending: false }).limit(50);
+    return result.data;
   } catch (error) {
     console.error('Error getting all meetings:', error);
     throw error;
@@ -161,7 +166,16 @@ async function storeGladiaTranscription(gladiaTxId, botId, text, userEmail, utte
       ON CONFLICT (id) DO UPDATE
       SET text = $3, gladia_tx_id = $4, bot_id = $5, user_email = $6, utterances = $7, audio_url = $8
     `;
-    await pool.query(query, [gladiaTxId, botId, text, gladiaTxId, botId, userEmail, JSON.stringify(utterances), audioUrl]);
+    await supabase.from('transcriptions').insert({
+      id: gladiaTxId,
+      meeting_id: botId,
+      text: text,
+      gladia_tx_id: gladiaTxId,
+      bot_id: botId,
+      user_email: userEmail,
+      utterances: JSON.stringify(utterances),
+      audio_url: audioUrl
+    }).onConflict('id').merge();
   } catch (error) {
     console.error('Error storing Gladia transcription:', error);
     throw error;
@@ -176,8 +190,8 @@ async function storeGladiaTranscription(gladiaTxId, botId, text, userEmail, utte
 async function getTranscriptionByMeetingId(meetingId) {
   try {
     const query = 'SELECT * FROM transcriptions WHERE meeting_id = $1 LIMIT 1';
-    const result = await pool.query(query, [meetingId]);
-    return result.rows[0] || null;
+    const result = await supabase.from('transcriptions').select().eq('meeting_id', meetingId).limit(1);
+    return result.data[0] || null;
   } catch (error) {
     console.error('Error getting transcription by meeting ID:', error);
     throw error;

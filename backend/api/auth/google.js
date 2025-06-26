@@ -47,6 +47,13 @@ router.get('/callback', async (req, res) => {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
+    // Get user from Supabase auth middleware
+    const userId = req.user?.id;
+    if (!userId) {
+      console.error('❌ No user ID found in request');
+      return res.redirect('/dashboard?error=no_user');
+    }
+
     // Store tokens in users table (by logged-in user)
     const expiry = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
 
@@ -57,17 +64,12 @@ router.get('/callback', async (req, res) => {
         google_token_expiry = $3,
         google_connected = TRUE
       WHERE id = $4`,
-      [tokens.access_token, tokens.refresh_token, expiry, req.session.user.id]
+      [tokens.access_token, tokens.refresh_token, expiry, userId]
     );
     
 
     // Store tokens in memory for auto-join service
-    if (req.session.user && req.session.user.id) {
-      userTokens.set(req.session.user.id, tokens);
-    }
-
-    // Optional: set a flag in session for UI
-    req.session.googleConnected = true;
+    userTokens.set(userId, tokens);
 
     // Redirect back to frontend dashboard
     const frontendUrl = process.env.NODE_ENV === 'production'
@@ -82,11 +84,11 @@ router.get('/callback', async (req, res) => {
 
 // Check connection status
 router.get('/status', async (req, res) => {
-  if (!req.session.user || !req.session.user.id) {
+  const userId = req.user?.id;
+  if (!userId) {
     console.log('🔍 Checking connection status: user not logged in');
     return res.json({ connected: false });
   }
-  const userId = req.session.user.id;
   console.log('🔍 Checking connection status for userId:', userId);
 
   try {
@@ -109,11 +111,11 @@ router.get('/status', async (req, res) => {
 
 // Disconnect Google Calendar
 router.post('/disconnect', async (req, res) => {
-  if (!req.session.user || !req.session.user.id) {
+  const userId = req.user?.id;
+  if (!userId) {
     console.log('🔌 Disconnect failed: not logged in');
     return res.status(401).json({ success: false, error: 'Not logged in' });
   }
-  const userId = req.session.user.id;
   console.log('🔌 Disconnecting Google Calendar for userId:', userId);
 
   try {
@@ -130,7 +132,6 @@ router.post('/disconnect', async (req, res) => {
     // Remove tokens from memory
     userTokens.delete(userId);
     
-    req.session.googleConnected = false; // for frontend UI, optional
     res.json({ success: true });
   } catch (err) {
     console.error('❌ Error disconnecting Google:', err);
@@ -140,11 +141,11 @@ router.post('/disconnect', async (req, res) => {
 
 // Get user's calendar events
 router.get('/events', async (req, res) => {
-  if (!req.session.user || !req.session.user.id) {
+  const userId = req.user?.id;
+  if (!userId) {
     console.log('📅 Fetching calendar events: not logged in');
     return res.status(401).json({ error: 'Not logged in' });
   }
-  const userId = req.session.user.id;
   console.log('📅 Fetching calendar events for userId:', userId);
 
   try {

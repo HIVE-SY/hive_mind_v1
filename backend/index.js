@@ -11,9 +11,11 @@ import databaseRouter from './routes/database.js';
 import { router as googleAuthRouter } from './api/auth/google.js';
 import { startAutoJoinService } from './meeting/autoJoin.js';
 import requireLogin from './api/middleware/require-login.js';
+import requireSupabaseAuth from './api/middleware/supabase-auth.js';
 import { verify } from 'crypto';
 import logoutRouter from './api/auth/logout.js';
 import magicLinkRouter from './api/auth/magicLink.js';
+import supabaseAuthRouter from './api/auth/supabase-auth.js';
 import pgSession from 'connect-pg-simple';
 import pool from './database/affine/db.js';
 import webhooksRouter from './routes/webhooks.js';
@@ -47,7 +49,8 @@ app.use(cors({
   credentials: true
 }));
 
-// Session middleware
+// Session middleware (commented out for Supabase-only auth)
+/*
 app.use(session({
   store: new (pgSession(session))({
     pool: pool,
@@ -63,6 +66,7 @@ app.use(session({
     ...(process.env.NODE_ENV === 'production' ? { domain: 'hive-mind-v1-api-259028418114.us-central1.run.app' } : {})
   }
 }));
+*/
 
 app.use((req, res, next) => {
   const originalSetHeader = res.setHeader;
@@ -84,6 +88,7 @@ app.get('/', (req, res) => {
   res.render('landing');
 });
 
+// Legacy session-based auth endpoint (for backward compatibility)
 app.get('/api/me', requireLogin, (req, res) => {
   console.log('Session cookie:', req.headers.cookie);
   console.log('Session:', req.session);
@@ -94,16 +99,19 @@ app.get('/api/me', requireLogin, (req, res) => {
   }
 });
 
+// Supabase authentication routes
+app.use('/api/auth/supabase', supabaseAuthRouter);
+
+// Legacy authentication routes (keeping for backward compatibility)
 app.use('/api/auth', magicLinkRouter);
 app.use('/api/auth/logout', logoutRouter);
 app.use('/api/auth/google', googleAuthRouter);
 
-// Routes
-
-app.use('/api/meetings', meetingsRouter);
-app.use('/api/transcription', transcriptionRouter);
-app.use('/api/analysis', analysisRouter);
-app.use('/api/database', databaseRouter);
+// Routes - using Supabase auth middleware for new endpoints
+app.use('/api/meetings', requireSupabaseAuth, meetingsRouter);
+app.use('/api/transcription', requireSupabaseAuth, transcriptionRouter);
+app.use('/api/analysis', requireSupabaseAuth, analysisRouter);
+app.use('/api/database', requireSupabaseAuth, databaseRouter);
 
 // Serve the upload page
 app.get('/upload', requireLogin, (req, res) => {

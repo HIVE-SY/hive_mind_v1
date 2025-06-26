@@ -1,6 +1,7 @@
 // src/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from './config/supabase.js';
 import '../static/css/dark-theme.css';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
@@ -17,40 +18,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [expandedId, setExpandedId] = useState(null);
 
-  // Session check
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/me`, { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) throw new Error('Not logged in');
-        return res.json();
-      })
-      .then(data => setUser(data))
-      .catch(err => navigate('/'));
-  }, [navigate]);
-
-  // Google Calendar status
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/auth/google/status`, { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => setGoogleStatus(data.connected ? 'Connected' : 'Not Connected'));
-  }, []);
-
-  // Connect/Disconnect Google Calendar
-  const connectGoogleCalendar = async () => {
-    const res = await fetch(`${API_BASE_URL}/api/auth/google/connect`, { credentials: 'include' });
-    const data = await res.json();
-    if (data.authUrl) window.location.href = data.authUrl;
-    else alert('Error: Could not get authentication URL');
-  };
-
-  const disconnectGoogleCalendar = async () => {
-    await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { 
-      method: 'POST', 
-      credentials: 'include' 
-    });
-    setGoogleStatus('Not Connected');
-  };
-
   // Meeting join logic
   const [joinError, setJoinError] = useState('');
   const [joinSuccess, setJoinSuccess] = useState('');
@@ -58,6 +25,89 @@ export default function Dashboard() {
   const [joinId, setJoinId] = useState(null);
   const [botIsInMeeting, setBotIsInMeeting] = useState(false);
   const [botStatus, setBotStatus] = useState('');
+
+  // Check Supabase authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error || !user) {
+          navigate('/login');
+          return;
+        }
+        setUser({
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at
+        });
+      } catch (err) {
+        navigate('/login');
+      }
+    };
+    checkAuth();
+  }, [navigate]);
+
+  // Google Calendar status
+  useEffect(() => {
+    if (user) {
+      checkGoogleAuthStatus();
+    }
+  }, [user]);
+
+  const checkGoogleAuthStatus = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) return;
+      const response = await fetch(`${API_BASE_URL}/api/auth/google/status`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setGoogleStatus(data.connected ? 'Connected' : 'Not Connected');
+      }
+    } catch (error) {
+      setGoogleStatus('Not Connected');
+    }
+  };
+
+  // Connect/Disconnect Google Calendar
+  const connectGoogleCalendar = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) return;
+      const res = await fetch(`${API_BASE_URL}/api/auth/google/connect`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      const data = await res.json();
+      if (data.authUrl) window.location.href = data.authUrl;
+      else alert('Error: Could not get authentication URL');
+    } catch (error) {
+      alert('Error connecting to Google Calendar');
+    }
+  };
+
+  const disconnectGoogleCalendar = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) return;
+      await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { 
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      setGoogleStatus('Not Connected');
+    } catch (error) {
+      alert('Error disconnecting from Google Calendar');
+    }
+  };
 
   // Dismiss meeting ended message on any user interaction
   useEffect(() => {
@@ -78,37 +128,35 @@ export default function Dashboard() {
     setJoinId(null);
     setMeetingEndedMsg('');
     setBotIsInMeeting(false);
-    
     if (!meetingLink) {
       setJoinError('Please enter a meeting link');
       setJoinStatus('error');
       return;
     }
-    
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) return;
       const response = await fetch(`${API_BASE_URL}/api/meetings/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ meetingLink }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+        body: JSON.stringify({ meetingLink })
       });
-      
       const data = await response.json();
-      
       if (response.ok) {
         setJoinStatus('processing');
         setJoinSuccess('Starting to join meeting...');
         setJoinId(data.joinId);
-        
         // Start polling for status updates
         const pollInterval = setInterval(async () => {
           try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const accessToken = session?.access_token;
+            if (!accessToken) return;
             const statusResponse = await fetch(`${API_BASE_URL}/api/meetings/status?joinId=${data.joinId}`, {
-              credentials: 'include'
+              headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             const statusData = await statusResponse.json();
-            
-            // Update botStatus for more granular feedback
             if (statusData.status === 'joining') {
               setBotStatus('joining');
               setJoinSuccess('Joining call...');
@@ -143,7 +191,6 @@ export default function Dashboard() {
             }
           } catch (error) {
             setBotStatus('');
-            console.error('Error checking meeting status:', error);
             setJoinStatus('error');
             setJoinError('Network error checking meeting status. Please try again.');
             setMeetingEndedMsg('There was a network issue checking meeting status.');
@@ -153,7 +200,6 @@ export default function Dashboard() {
             clearInterval(pollInterval);
           }
         }, 2000);
-        
         setTimeout(() => {
           if (joinStatus === 'processing' || joinStatus === 'success') {
             clearInterval(pollInterval);
@@ -172,26 +218,41 @@ export default function Dashboard() {
     } catch (error) {
       setJoinStatus('error');
       setJoinError('Network error. Please try again.');
-      console.error('Error joining meeting:', error);
     }
   };
 
   // Logout handler
   const handleLogout = async () => {
-    await fetch(`${API_BASE_URL}/api/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    window.location.href = '/';
+    await supabase.auth.signOut();
+    localStorage.removeItem('supabase.auth.token');
+    navigate('/login');
   };
 
   // Fetch recent conversations (meetings)
+  const loadConversations = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) return;
+      const response = await fetch(`${API_BASE_URL}/api/meetings/conversations`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      setConversations([]);
+    }
+  };
+
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/meetings/recent-conversations`, { credentials: 'include' })
-      .then(res => res.json())
-      .then(data => setConversations(data.conversations || []))
-      .catch(err => console.error('Failed to fetch recent conversations:', err));
-  }, []);
+    if (user) {
+      loadConversations();
+    }
+  }, [user]);
 
   if (!user) return <div className="loading-screen">Loading...</div>;
 
@@ -223,7 +284,6 @@ export default function Dashboard() {
           <p className="subtitle">Ready to join your next meeting?</p>
         </section>
 
-        
         {/* QUICK ACTIONS GRID */}
         <div className="quick-actions-grid">
           {/* GOOGLE CALENDAR CARD */}
@@ -349,12 +409,7 @@ export default function Dashboard() {
         <section className="conversations-section">
           <div className="section-header">
             <h2>Recent Meetings</h2>
-            <button className="btn-refresh" onClick={() => {
-              fetch(`${API_BASE_URL}/api/meetings/recent-conversations`, { credentials: 'include' })
-                .then(res => res.json())
-                .then(data => setConversations(data.conversations || []))
-                .catch(err => console.error('Failed to fetch recent conversations:', err));
-            }}>
+            <button className="btn-refresh" onClick={loadConversations}>
               <i className="bi bi-arrow-clockwise"></i> Refresh
             </button>
           </div>
@@ -398,21 +453,17 @@ export default function Dashboard() {
                           {convo.utterances && Array.isArray(convo.utterances) && convo.utterances.length > 0 ? (
                             <div className="dialogue-transcript">
                               {convo.utterances.reduce((acc, utt, idx) => {
-                                // If it's the first message or speaker changed from previous message
                                 if (idx === 0 || utt.speaker !== convo.utterances[idx - 1].speaker) {
-                                  // Start a new group
                                   acc.push({
                                     speaker: utt.speaker,
                                     text: utt.text,
                                     start_time: utt.start_time || utt.start || utt.timestamp
                                   });
                                 } else {
-                                  // Concatenate with the previous message from same speaker
                                   acc[acc.length - 1].text += ' ' + utt.text;
                                 }
                                 return acc;
                               }, []).map((group, idx) => {
-                                // Format timestamp
                                 const formatTime = (timestamp) => {
                                   if (!timestamp) return '';
                                   const seconds = typeof timestamp === 'number' ? timestamp : parseFloat(timestamp);
@@ -421,7 +472,6 @@ export default function Dashboard() {
                                   const remainingSeconds = Math.floor(seconds % 60);
                                   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
                                 };
-
                                 return (
                                   <div className="utterance-line" key={idx}>
                                     <span className="speaker-badge">

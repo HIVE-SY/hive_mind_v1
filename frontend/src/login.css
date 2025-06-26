@@ -99,3 +99,59 @@
     }
   }
   
+  .auth-mode-toggle {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+  }
+
+  .toggle-btn {
+    padding: 10px 20px;
+    border: 2px solid #4a90e2;
+    background: transparent;
+    color: #4a90e2;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .toggle-btn:hover {
+    background: #4a90e2;
+    color: white;
+  }
+
+  .toggle-btn.active {
+    background: #4a90e2;
+    color: white;
+  }
+
+  .signup-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .signup-section .login-subtext {
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .cta-button.secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+  }
+
+  .cta-button.secondary:hover {
+    background: #5a6268;
+    border-color: #5a6268;
+  }
+
+  .cta-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
