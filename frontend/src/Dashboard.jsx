@@ -17,14 +17,16 @@ export default function Dashboard() {
   const [meetingEndedMsg, setMeetingEndedMsg] = useState('');
   const navigate = useNavigate();
   const [expandedId, setExpandedId] = useState(null);
+  const [modalMeeting, setModalMeeting] = useState(null);
 
   // Meeting join logic
   const [joinError, setJoinError] = useState('');
   const [joinSuccess, setJoinSuccess] = useState('');
-  const [joinStatus, setJoinStatus] = useState('idle');
-  const [joinId, setJoinId] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
   const [botIsInMeeting, setBotIsInMeeting] = useState(false);
-  const [botStatus, setBotStatus] = useState('');
+
+  // Add a ref to store the polling interval
+  const pollingRef = React.useRef(null);
 
   // Check Supabase authentication
   useEffect(() => {
@@ -121,16 +123,33 @@ export default function Dashboard() {
     };
   }, [meetingEndedMsg]);
 
+  // Hide status message on any user click and stop polling
+  useEffect(() => {
+    if (!statusMessage) return;
+    const handler = () => {
+      setStatusMessage('');
+      setJoinSuccess(''); // Also clear join success message
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+    window.addEventListener('click', handler);
+    window.addEventListener('keydown', handler);
+    return () => {
+      window.removeEventListener('click', handler);
+      window.removeEventListener('keydown', handler);
+    };
+  }, [statusMessage]);
+
   const joinViaLink = async () => {
     setJoinError('');
     setJoinSuccess('');
-    setJoinStatus('processing');
-    setJoinId(null);
+    setStatusMessage('Joining meeting...');
     setMeetingEndedMsg('');
-    setBotIsInMeeting(false);
     if (!meetingLink) {
       setJoinError('Please enter a meeting link');
-      setJoinStatus('error');
+      setStatusMessage('');
       return;
     }
     try {
@@ -143,83 +162,51 @@ export default function Dashboard() {
         body: JSON.stringify({ meetingLink })
       });
       const data = await response.json();
-      if (response.ok) {
-        setJoinStatus('processing');
+      if (response.ok && data.botId) {
+        setStatusMessage('Joining meeting...');
         setJoinSuccess('Starting to join meeting...');
-        setJoinId(data.joinId);
         // Start polling for status updates
-        const pollInterval = setInterval(async () => {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = setInterval(async () => {
           try {
             const { data: { session } } = await supabase.auth.getSession();
             const accessToken = session?.access_token;
             if (!accessToken) return;
-            const statusResponse = await fetch(`${API_BASE_URL}/api/meetings/status?joinId=${data.joinId}`, {
-              headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            const statusData = await statusResponse.json();
-            if (statusData.status === 'joining') {
-              setBotStatus('joining');
-              setJoinSuccess('Joining call...');
-            } else if (statusData.status === 'in_waiting_room') {
-              setBotStatus('waiting');
-              setJoinSuccess(statusData.message || 'Bot is waiting to join the meeting...');
-            } else if (statusData.status === 'in_call_recording') {
-              setBotStatus('joined');
-              setJoinStatus('success');
-              setJoinSuccess(statusData.message || 'Bot joined the meeting!');
-              setBotIsInMeeting(true);
-            } else if (statusData.status === 'ended') {
-              setBotStatus('');
-              setJoinStatus('idle');
-              setJoinSuccess('');
-              setJoinError('');
-              setMeetingEndedMsg(statusData.message || 'The meeting has ended or the bot has left.');
-              setMeetingLink('');
-              setLinkFormVisible(false);
-              setBotIsInMeeting(false);
-              clearInterval(pollInterval);
-            } else if (statusData.status === 'error') {
-              setBotStatus('');
-              setJoinStatus('error');
-              setJoinError(statusData.error || 'Failed to join meeting');
-              setJoinSuccess('');
-              setMeetingEndedMsg(statusData.error || 'The bot could not join or an error occurred.');
-              setMeetingLink('');
-              setLinkFormVisible(false);
-              setBotIsInMeeting(false);
-              clearInterval(pollInterval);
+            const statusRes = await fetch(
+              `${API_BASE_URL}/api/meetings/status?botId=${data.botId}`,
+              {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+              }
+            );
+            if (!statusRes.ok) return;
+            const statusData = await statusRes.json();
+            if (statusData.status === 'in_call_recording') {
+              setStatusMessage('Bot is in the meeting and recording!');
+            } else if (statusData.status === 'completed') {
+              setStatusMessage('Meeting has ended.');
+              clearInterval(pollingRef.current);
+              pollingRef.current = null;
+            } else if (statusData.status === 'joining' || statusData.status === 'processing') {
+              setStatusMessage('Joining meeting...');
             }
-          } catch (error) {
-            setBotStatus('');
-            setJoinStatus('error');
-            setJoinError('Network error checking meeting status. Please try again.');
-            setMeetingEndedMsg('There was a network issue checking meeting status.');
-            setMeetingLink('');
-            setLinkFormVisible(false);
-            setBotIsInMeeting(false);
-            clearInterval(pollInterval);
-          }
+          } catch (e) {}
         }, 2000);
-        setTimeout(() => {
-          if (joinStatus === 'processing' || joinStatus === 'success') {
-            clearInterval(pollInterval);
-            setJoinStatus('error');
-            setJoinError('Meeting status check timed out or bot disconnected unexpectedly.');
-            setMeetingEndedMsg('Meeting status check timed out or bot disconnected unexpectedly.');
-            setMeetingLink('');
-            setLinkFormVisible(false);
-            setBotIsInMeeting(false);
-          }
-        }, 120000);
       } else {
-        setJoinStatus('error');
-        setJoinError(data.error || 'Error joining meeting');
+        setJoinError(data.error || 'Failed to join meeting');
+        setStatusMessage('');
       }
     } catch (error) {
-      setJoinStatus('error');
-      setJoinError('Network error. Please try again.');
+      setJoinError('Failed to join meeting');
+      setStatusMessage('');
     }
   };
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   // Logout handler
   const handleLogout = async () => {
@@ -345,7 +332,7 @@ export default function Dashboard() {
                       value={meetingLink}
                       onChange={e => setMeetingLink(e.target.value)}
                       placeholder="https://meet.google.com/..."
-                      disabled={joinStatus === 'processing' || botIsInMeeting}
+                      disabled={botIsInMeeting}
                     />
                   </div>
                   <div className="form-actions">
@@ -353,28 +340,20 @@ export default function Dashboard() {
                       className="btn-secondary"
                       onClick={() => {
                         setLinkFormVisible(false);
-                        setJoinStatus('idle');
-                        setJoinError('');
-                        setJoinSuccess('');
-                        setBotIsInMeeting(false);
                         setMeetingEndedMsg('');
                       }}
-                      disabled={joinStatus === 'processing' || botIsInMeeting}
+                      disabled={botIsInMeeting}
                     >
                       Cancel
                     </button>
                     <button 
-                      className={`btn-primary ${joinStatus === 'processing' || botIsInMeeting ? 'loading' : ''}`}
+                      className={`btn-primary ${botIsInMeeting ? 'loading' : ''}`}
                       onClick={joinViaLink}
-                      disabled={joinStatus === 'processing' || botIsInMeeting}
+                      disabled={botIsInMeeting}
                     >
-                      {joinStatus === 'processing' ? (
+                      {botIsInMeeting ? (
                         <>
                           <i className="bi bi-arrow-repeat spin"></i> Joining...
-                        </>
-                      ) : botIsInMeeting ? (
-                        <>
-                          <i className="bi bi-check-circle"></i> In Meeting
                         </>
                       ) : (
                         'Join Now'
@@ -395,10 +374,10 @@ export default function Dashboard() {
                   )}
                 </div>
               )}
-              {meetingEndedMsg && (
+              {statusMessage && (
                 <div className="alert alert-info" style={{ marginTop: '1em' }}>
                   <i className="bi bi-info-circle"></i>
-                  {meetingEndedMsg}
+                  {statusMessage}
                 </div>
               )}
             </div>
@@ -408,7 +387,7 @@ export default function Dashboard() {
         {/* RECENT CONVERSATIONS */}
         <section className="conversations-section">
           <div className="section-header">
-            <h2>Recent Meetings</h2>
+            <h2>Recent Meetings.</h2>
             <button className="btn-refresh" onClick={loadConversations}>
               <i className="bi bi-arrow-clockwise"></i> Refresh
             </button>
@@ -424,6 +403,13 @@ export default function Dashboard() {
               {conversations.map(convo => {
                 const id = convo.botId || convo.id;
                 const isExpanded = expandedId === id;
+                // Extract transcript data from the joined transcriptions
+                const transcript = convo.transcriptions && convo.transcriptions.length > 0 ? convo.transcriptions[0] : null;
+                const transcriptText = transcript?.text || convo.transcript;
+                const utterances = transcript?.utterances || convo.utterances;
+                const audioUrl = transcript?.audio_url || convo.audio_url;
+                // Only use utterances if it's a non-empty array and all items have text
+                const validUtterances = Array.isArray(utterances) && utterances.length > 0 && utterances.every(u => u && typeof u.text === 'string');
                 return (
                   <div
                     className={`conversation-card full-width${isExpanded ? ' expanded' : ''}`}
@@ -435,11 +421,11 @@ export default function Dashboard() {
                       onClick={() => setExpandedId(isExpanded ? null : id)}
                       style={{ cursor: 'pointer' }}
                     >
-                      <h4>Meeting ID: {id}</h4>
+                      <h4>Meeting: {convo.title || `ID: ${id}`}</h4>
                       <span className="date">
-                        {convo.utterances && Array.isArray(convo.utterances) && convo.utterances.length > 0
-                          ? `${convo.utterances.length} messages from ${new Set(convo.utterances.map(u => u.speaker)).size} speaker(s)`
-                          : 'No speakers detected'}
+                        {validUtterances
+                          ? `${utterances.length} messages from ${new Set(utterances.map(u => u.speaker)).size} speaker(s)`
+                          : transcriptText ? 'Transcript available' : 'No transcript yet'}
                         {convo.start_time && (
                           <span className="meeting-time">
                             • {new Date(convo.start_time).toLocaleString()}
@@ -450,62 +436,89 @@ export default function Dashboard() {
                     <div className="card-body">
                       {isExpanded ? (
                         <>
-                          {convo.utterances && Array.isArray(convo.utterances) && convo.utterances.length > 0 ? (
-                            <div className="dialogue-transcript">
-                              {convo.utterances.reduce((acc, utt, idx) => {
-                                if (idx === 0 || utt.speaker !== convo.utterances[idx - 1].speaker) {
-                                  acc.push({
-                                    speaker: utt.speaker,
-                                    text: utt.text,
-                                    start_time: utt.start_time || utt.start || utt.timestamp
-                                  });
-                                } else {
-                                  acc[acc.length - 1].text += ' ' + utt.text;
+                          {Array.isArray(utterances) && utterances.length > 0 ? (
+                            <>
+                              {/* Calculate and show meeting duration */}
+                              {(() => {
+                                // Flatten all words from all utterances
+                                const allWords = utterances.flatMap(u => Array.isArray(u.words) ? u.words : []);
+                                // Get all start and end timestamps (relative seconds)
+                                const startTimes = allWords.map(w => w.start_timestamp?.relative).filter(Number.isFinite);
+                                const endTimes = allWords.map(w => w.end_timestamp?.relative).filter(Number.isFinite);
+                                if (startTimes.length && endTimes.length) {
+                                  const minStart = Math.min(...startTimes);
+                                  const maxEnd = Math.max(...endTimes);
+                                  const durationSec = Math.max(0, maxEnd - minStart);
+                                  const min = Math.floor(durationSec / 60);
+                                  const sec = Math.round(durationSec % 60);
+                                  return (
+                                    <div className="meeting-duration" style={{ marginBottom: '0.5em', fontWeight: 500 }}>
+                                      Duration: {min > 0 ? `${min} min ` : ''}{sec} sec
+                                    </div>
+                                  );
                                 }
-                                return acc;
-                              }, []).map((group, idx) => {
-                                const formatTime = (timestamp) => {
-                                  if (!timestamp) return '';
-                                  const seconds = typeof timestamp === 'number' ? timestamp : parseFloat(timestamp);
-                                  if (isNaN(seconds)) return '';
-                                  const minutes = Math.floor(seconds / 60);
-                                  const remainingSeconds = Math.floor(seconds % 60);
-                                  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-                                };
-                                return (
-                                  <div className="utterance-line" key={idx}>
-                                    <span className="speaker-badge">
-                                      {typeof group.speaker === 'number' ? `Speaker ${group.speaker}` : 'Unknown Speaker'}
-                                    </span>
-                                    <span className="utterance-text">
-                                      {group.text}
-                                    </span>
-                                    {group.start_time && (
-                                      <span className="timestamp">
-                                        {formatTime(group.start_time)}
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
+                                return null;
+                              })()}
+                              <div className="dialogue-transcript">
+                                {utterances.map((utt, idx) => {
+                                  // Get speaker name
+                                  let speakerLabel = 'Unknown Speaker';
+                                  if (utt.participant) {
+                                    if (utt.participant.name && utt.participant.name.trim() !== '') {
+                                      speakerLabel = utt.participant.name;
+                                    } else if (utt.participant.id) {
+                                      speakerLabel = `Speaker ${utt.participant.id}`;
+                                    }
+                                  }
+                                  // Concatenate all words for this utterance
+                                  const text = Array.isArray(utt.words)
+                                    ? utt.words.map(w => w.text).join(' ')
+                                    : '';
+                                  return (
+                                    <div className="utterance-line" key={idx}>
+                                      <span className="speaker-badge">{speakerLabel}</span>
+                                      <span className="utterance-text">{text}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
                           ) : (
-                            <p><strong>Transcript:</strong> {convo.transcript || <em>No transcript</em>}</p>
+                            <p><strong>Transcript:</strong> {transcriptText || <em>No transcript</em>}</p>
                           )}
-                          {convo.audio_url ? (
+                          {audioUrl ? (
                             <div className="audio-section">
-                              <a href={convo.audio_url} target="_blank" rel="noopener noreferrer" className="btn-details">
+                              <a href={audioUrl} target="_blank" rel="noopener noreferrer" className="btn-details">
                                 <i className="bi bi-play-circle"></i> Play Audio Recording
                               </a>
                             </div>
                           ) : (
                             <span className="no-link">No audio recording available</span>
                           )}
+                          <button
+                            className="btn-details"
+                            style={{ 
+                              marginTop: '1em', 
+                              width: '10%',
+                              background: '#00bfa5',
+                              color: '#000',
+                              fontWeight: '700',
+                              fontSize: '0.8rem',
+                              borderRadius: '20px',
+                              padding: '0.4em 1.2em',
+                              letterSpacing: '0.5px',
+                              boxShadow: '0 2px 8px rgba(0,191,165,0.10)',
+                              border: 'none'
+                            }}
+                            onClick={() => setModalMeeting(convo)}
+                          >
+                            <i className="bi bi-arrows-fullscreen"></i> See More
+                          </button>
                         </>
                       ) : (
                         <p>
-                          Transcript: {convo.transcript
-                            ? convo.transcript.slice(0, 100) + (convo.transcript.length > 100 ? '...' : '')
+                          Transcript: {transcriptText
+                            ? transcriptText.slice(0, 100) + (transcriptText.length > 100 ? '...' : '')
                             : <em>No transcript</em>}
                         </p>
                       )}
@@ -517,6 +530,111 @@ export default function Dashboard() {
           )}
         </section>
       </main>
+
+      {/* Full-screen modal for meeting details */}
+      {modalMeeting && (
+        <div className="modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', overflow: 'auto', padding: '2rem'
+        }}>
+          <div className="modal-content" style={{
+            background: '#181a1b', borderRadius: '12px', maxWidth: '1400px', width: '90vw', height: '80vh', padding: '2.5em', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden', margin: 'auto', display: 'flex', gap: '2em', flexDirection: 'row', alignItems: 'flex-start'
+          }}>
+            <button
+              onClick={() => setModalMeeting(null)}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                background: 'none',
+                border: 'none',
+                color: '#fff',
+                cursor: 'pointer',
+                padding: '0.3em 0.6em',
+                borderRadius: '50%',
+                transition: 'background 0.2s',
+                zIndex: 100
+              }}
+              aria-label="Close"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" width={20} height={20}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            {/* LEFT COLUMN: Details */}
+            <div style={{ flex: '0 0 33%', maxWidth: '33%', paddingRight: '1.5em', borderRight: '1px solid #23272a', minWidth: 0 }}>
+              <h2 style={{ marginBottom: '1em', fontSize: '1.8rem', wordBreak: 'break-word' }}>{modalMeeting.title || `Meeting: ${modalMeeting.id}`}</h2>
+              <div style={{ marginBottom: '1.5em', fontSize: '0.95em', lineHeight: '1.6' }}>
+                <div style={{ marginBottom: '0.3em' }}><strong>Meeting Link:</strong> <a href={modalMeeting.title} target="_blank" rel="noopener noreferrer" style={{ color: '#4fd1c5', wordBreak: 'break-all' }}>{modalMeeting.title}</a></div>
+                <div style={{ marginBottom: '0.3em' }}><strong>Status:</strong> {modalMeeting.status || 'Unknown'}</div>
+                <div style={{ marginBottom: '0.3em' }}><strong>Start Time:</strong> {modalMeeting.start_time ? new Date(modalMeeting.start_time).toLocaleString() : 'N/A'}</div>
+                <div style={{ marginBottom: '0.3em' }}><strong>End Time:</strong> {modalMeeting.end_time ? new Date(modalMeeting.end_time).toLocaleString() : 'N/A'}</div>
+                {/* Duration calculation */}
+                {(() => {
+                  const utterances = (modalMeeting.transcriptions && modalMeeting.transcriptions[0]?.utterances) || modalMeeting.utterances || [];
+                  const allWords = utterances.flatMap(u => Array.isArray(u.words) ? u.words : []);
+                  const startTimes = allWords.map(w => w.start_timestamp?.relative).filter(Number.isFinite);
+                  const endTimes = allWords.map(w => w.end_timestamp?.relative).filter(Number.isFinite);
+                  if (startTimes.length && endTimes.length) {
+                    const minStart = Math.min(...startTimes);
+                    const maxEnd = Math.max(...endTimes);
+                    const durationSec = Math.max(0, maxEnd - minStart);
+                    const min = Math.floor(durationSec / 60);
+                    const sec = Math.round(durationSec % 60);
+                    return <div style={{ marginBottom: '0.3em' }}><strong>Duration:</strong> {min > 0 ? `${min} min ` : ''}{sec} sec</div>;
+                  }
+                  return null;
+                })()}
+                {/* Participants */}
+                {(() => {
+                  const utterances = (modalMeeting.transcriptions && modalMeeting.transcriptions[0]?.utterances) || modalMeeting.utterances || [];
+                  const participants = Array.from(new Set(
+                    utterances.map(u => u.participant?.name || u.participant?.id || 'Unknown Speaker')
+                  ));
+                  return (
+                    <div style={{ marginBottom: '0.3em', wordBreak: 'break-word' }}><strong>Participants:</strong> {participants.join(', ')}</div>
+                  );
+                })()}
+                <div style={{ marginBottom: '0.3em', wordBreak: 'break-all' }}><strong>Meeting ID:</strong> {modalMeeting.id}</div>
+                <div style={{ marginBottom: '0.3em', wordBreak: 'break-all' }}><strong>Bot ID:</strong> {modalMeeting.bot_id || modalMeeting.botId || 'N/A'}</div>
+                <div style={{ marginBottom: '0.3em', wordBreak: 'break-all' }}><strong>User:</strong> {modalMeeting.contact_email || modalMeeting.user_email || 'N/A'}</div>
+              </div>
+            </div>
+            {/* RIGHT COLUMN: Transcript */}
+            <div style={{ flex: '0 0 60%', maxWidth: '66%', padding: '1.5em', minWidth: 0, position: 'relative' }}>
+              <div style={{ maxHeight: '60vh', overflowY: 'auto', background: '#23272a', borderRadius: '8px', padding: '1.2em' }}>
+                <h3 style={{ marginBottom: '1em', fontSize: '1.3rem' }}>Full Transcript</h3>
+                {(() => {
+                  const utterances = (modalMeeting.transcriptions && modalMeeting.transcriptions[0]?.utterances) || modalMeeting.utterances || [];
+                  if (utterances.length > 0) {
+                    return utterances.map((utt, idx) => {
+                      let speakerLabel = 'Unknown Speaker';
+                      if (utt.participant) {
+                        if (utt.participant.name && utt.participant.name.trim() !== '') {
+                          speakerLabel = utt.participant.name;
+                        } else if (utt.participant.id) {
+                          speakerLabel = `Speaker ${utt.participant.id}`;
+                        }
+                      }
+                      const text = Array.isArray(utt.words)
+                        ? utt.words.map(w => w.text).join(' ')
+                        : '';
+                      return (
+                        <div className="utterance-line" key={idx} style={{ marginBottom: '0.8em' }}>
+                          <span className="speaker-badge" style={{ fontWeight: 600, color: '#000', marginRight: 8 }}>{speakerLabel}:</span>
+                          <span className="utterance-text">{text}</span>
+                        </div>
+                      );
+                    });
+                  } else {
+                    return <p><em>No transcript available.</em></p>;
+                  }
+                })()}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

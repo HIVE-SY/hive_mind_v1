@@ -28,11 +28,8 @@ router.post('/join', async (req, res) => {
     const joinId = Date.now().toString();
     global.meetingStatus.set(joinId, { status: 'processing', error: null });
 
-    // Construct base server URL for webhook
-    const baseServerUrl = `${req.protocol}://${req.get('host')}`;
-
-    // Join the meeting using Meeting BaaS
-    const result = await joinMeeting(meetingLink, baseServerUrl);
+    // Join the meeting using Recall.ai
+    const result = await joinMeeting(meetingLink);
     
     if (result.success) {
       global.meetingStatus.set(joinId, { 
@@ -41,19 +38,20 @@ router.post('/join', async (req, res) => {
         error: null,
         message: 'Joining meeting...'
       });
-      // Save meeting with Supabase user email
+      // Save meeting with correct fields
       await storeMeetingData(
-        result.botId, // meetingId
-        meetingLink, // title (or use a better title if available)
-        new Date().toISOString(), // startTime (bot join time)
-        null, // endTime
-        [], // participants
-        req.user.email
+        result.botId,                // meetingId (Recall.ai bot ID, uuid)
+        req.user.id,                 // userId (Supabase user ID, uuid)
+        req.user.email,              // userEmail (user's email address)
+        meetingLink,                 // title (the meeting link, or generate a better title)
+        new Date().toISOString(),    // startTime (bot join time)
+        null                         // endTime
       );
       res.status(200).json({ 
         message: 'Starting to join meeting...',
         status: 'joining',
-        joinId
+        joinId,
+        botId: result.botId
       });
     } else {
       global.meetingStatus.set(joinId, { 
@@ -74,19 +72,17 @@ router.post('/join', async (req, res) => {
   }
 });
 
-// Add status endpoint
+// Add status endpoint by botId
 router.get('/status', (req, res) => {
-  const { joinId } = req.query;
-  
-  if (!joinId) {
-    return res.status(400).json({ error: 'Join ID is required' });
+  const { botId } = req.query;
+  if (!botId) {
+    return res.status(400).json({ error: 'Bot ID is required' });
   }
-
-  const status = global.meetingStatus.get(joinId);
+  // Find the latest status for this botId
+  const status = Array.from(global.meetingStatus.values()).find(s => s.botId === botId);
   if (!status) {
-    return res.status(404).json({ error: 'Join attempt not found' });
+    return res.status(404).json({ error: 'Meeting status not found' });
   }
-
   res.json(status);
 });
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { storeMeetingData, getMeetingData, storeTranscription, getTranscription, storeAnalysis, getAnalysis } from '../utils/database.js';
+import { storeMeetingData, getMeetingData, storeTranscription, getTranscription, storeAnalysis, getAnalysis, getTranscriptionByMeetingId, getAllMeetings } from '../utils/database.js';
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ router.post('/meetings', async (req, res) => {
   }
 
   try {
-    await storeMeetingData(meetingId, title, startTime, endTime, participants, req.user.email);
+    await storeMeetingData(meetingId, req.user.id, req.user.email, title, startTime, endTime);
     res.status(200).json({ message: 'Meeting data stored successfully' });
   } catch (error) {
     console.error('Error storing meeting data:', error);
@@ -34,7 +34,7 @@ router.get('/meetings/:meetingId', async (req, res) => {
 
   try {
     const meetingData = await getMeetingData(meetingId);
-    if (meetingData && meetingData.user_email !== req.user.email) {
+    if (meetingData && meetingData.contact_email !== req.user.email) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     res.status(200).json(meetingData);
@@ -117,6 +117,55 @@ router.get('/analysis/:analysisId', async (req, res) => {
   } catch (error) {
     console.error('Error getting analysis:', error);
     res.status(500).json({ error: 'Failed to get analysis' });
+  }
+});
+
+// Get transcription by ID
+router.get('/transcription/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const transcription = await getTranscription(id);
+    if (transcription) {
+      res.json(transcription);
+    } else {
+      res.status(404).json({ error: 'Transcription not found' });
+    }
+  } catch (error) {
+    console.error('Error getting transcription:', error);
+    res.status(500).json({ error: 'Failed to get transcription' });
+  }
+});
+
+// Get transcription by meeting ID
+router.get('/transcription/meeting/:meetingId', async (req, res) => {
+  const { meetingId } = req.params;
+  
+  try {
+    const transcription = await getTranscriptionByMeetingId(meetingId);
+    if (transcription) {
+      res.json(transcription);
+    } else {
+      res.status(404).json({ error: 'Transcription not found for this meeting' });
+    }
+  } catch (error) {
+    console.error('Error getting transcription by meeting ID:', error);
+    res.status(500).json({ error: 'Failed to get transcription' });
+  }
+});
+
+// Get all meetings for a user
+router.get('/meetings', async (req, res) => {
+  if (!req.user || !req.user.email) {
+    return res.status(401).json({ error: 'Not logged in' });
+  }
+  
+  try {
+    const meetings = await getAllMeetings(req.user.email);
+    res.json(meetings);
+  } catch (error) {
+    console.error('Error getting meetings:', error);
+    res.status(500).json({ error: 'Failed to get meetings' });
   }
 });
 

@@ -2,22 +2,29 @@ import { supabase } from '../config/supabase.js';
 
 /**
  * Store meeting data in the database
- * @param {string} meetingId The ID of the meeting
+ * @param {string} meetingId The ID of the meeting (Recall.ai bot ID, uuid)
+ * @param {string} userId The Supabase user ID
+ * @param {string} userEmail The user's email address
  * @param {string} title The title of the meeting
  * @param {string} startTime The start time of the meeting
  * @param {string} endTime The end time of the meeting
- * @param {Array} participants The list of participants
- * @param {string} userEmail The email of the user who owns the meeting (from req.user.email, Supabase)
  */
-async function storeMeetingData(meetingId, title, startTime, endTime, participants, userEmail) {
+async function storeMeetingData(meetingId, userId, userEmail, title, startTime, endTime) {
   try {
-    const query = `
-      INSERT INTO meetings (id, title, start_time, end_time, participants, user_email)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (id) DO UPDATE
-      SET title = $2, start_time = $3, end_time = $4, participants = $5, user_email = $6
-    `;
-    await supabase.rpc('sql', { query, params: [meetingId, title, startTime, endTime, participants, userEmail] });
+    const { error } = await supabase.from('meetings').insert({
+      id: meetingId,         // Recall.ai bot ID (uuid)
+      bot_id: meetingId,     // Also store as bot_id for consistency
+      user_id: userId,       // Supabase user ID (uuid)
+      contact_email: userEmail, // User's email address
+      title: title,          // Meeting link or generated title
+      start_time: startTime, // ISO string
+      end_time: endTime || startTime // Use startTime as default if endTime is null
+    });
+    if (error) {
+      console.error('Error storing meeting data:', error);
+      throw error;
+    }
+    console.log('Stored meeting in DB with botId:', meetingId);
   } catch (error) {
     console.error('Error storing meeting data:', error);
     throw error;
@@ -45,23 +52,19 @@ async function getMeetingData(meetingId) {
  * @param {string} transcriptionId The ID of the transcription
  * @param {string} meetingId The ID of the meeting
  * @param {string} text The transcription text
- * @param {string} startTime The start time of the transcription
- * @param {string} endTime The end time of the transcription
+ * @param {string} userEmail The email of the user who owns the meeting
+ * @param {Array} utterances The utterances array (speaker-labeled segments)
+ * @param {string} audioUrl The URL of the audio file
  */
-async function storeTranscription(transcriptionId, meetingId, text, startTime, endTime) {
+async function storeTranscription(transcriptionId, meetingId, text, userEmail, utterances, audioUrl) {
   try {
-    const query = `
-      INSERT INTO transcriptions (id, meeting_id, text, start_time, end_time)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (id) DO UPDATE
-      SET text = $3, start_time = $4, end_time = $5
-    `;
     await supabase.from('transcriptions').insert({
-      id: transcriptionId,
+      recall_txt_id: transcript.id,
       meeting_id: meetingId,
-      text: text,
-      start_time: startTime,
-      end_time: endTime
+      text: fullText,
+      user_email: userEmail,
+      utterances: JSON.stringify(utterances),
+      audio_url: audioUrl
     }).onConflict('id').merge();
   } catch (error) {
     console.error('Error storing transcription:', error);
@@ -128,20 +131,33 @@ async function getAnalysis(analysisId) {
 
 /**
  * Get all meetings with their transcripts (if available) for a specific user
- * @param {string} userEmail The email of the user
+ * @param {string} userEmail The user's email address
  * @returns {Promise<Array>} List of meetings with transcript
  */
 async function getAllMeetings(userEmail) {
   try {
-    const query = `
-      SELECT m.*, t.text AS transcript, t.utterances, t.audio_url
-      FROM meetings m
-      LEFT JOIN transcriptions t ON m.id = t.meeting_id
-      WHERE m.user_email = $1
-      ORDER BY m.start_time DESC NULLS LAST
-      LIMIT 50
-    `;
-    const result = await supabase.from('meetings').select('*').eq('user_email', userEmail).order('start_time', { ascending: false }).limit(50);
+    console.log('🔍 Getting meetings for user:', userEmail);
+    const result = await supabase
+      .from('meetings')
+      .select(`
+        *,
+        transcriptions (
+          id,
+          text,
+          utterances,
+          audio_url,
+          created_at
+        )
+      `)
+      .eq('contact_email', userEmail)
+      .order('start_time', { ascending: false })
+      .limit(50);
+    
+    console.log('📊 Found meetings:', result.data?.length || 0);
+    if (result.data && result.data.length > 0) {
+      console.log('📋 Sample meeting data:', JSON.stringify(result.data[0], null, 2));
+    }
+    
     return result.data;
   } catch (error) {
     console.error('Error getting all meetings:', error);
@@ -183,6 +199,39 @@ async function storeGladiaTranscription(gladiaTxId, botId, text, userEmail, utte
 }
 
 /**
+ * Store Recall.ai transcription in the database
+ * @param {string} recallTxId The Recall.ai transcript ID (text)
+ * @param {string} meetingId The bot ID (uuid)
+ * @param {string} text The transcription text
+ * @param {Array|Object} utterances The utterances array (jsonb)
+ * @param {string|null} audioUrl The URL of the audio file
+ * @param {string} createdAt The timestamp for the transcription
+ * @param {string} userEmail The email of the user who owns the meeting (optional)
+ */
+async function storeRecallTranscription(recallTxId, meetingId, text, utterances, audioUrl, createdAt, userEmail) {
+  try {
+    const { error } = await supabase.from('transcriptions').insert({
+      recall_txt_id: recallTxId,      // Recall.ai transcript ID (text)
+      meeting_id: meetingId,         // Bot ID (uuid)
+      text: text,
+      utterances: utterances,        // Array/object, supabase will handle jsonb
+      audio_url: audioUrl,
+      created_at: createdAt,
+      user_email: userEmail || null
+      // id will auto-increment (bigint)
+    });
+    if (error) {
+      console.error('Error storing Recall.ai transcription:', error);
+      throw error;
+    }
+    console.log('Stored Recall.ai transcription in DB for meeting:', meetingId);
+  } catch (error) {
+    console.error('Error storing Recall.ai transcription:', error);
+    throw error;
+  }
+}
+
+/**
  * Get a transcription by meeting ID
  * @param {string} meetingId The ID of the meeting
  * @returns {Promise<Object|null>} The transcription data or null if not found
@@ -207,5 +256,6 @@ export {
   getAnalysis,
   getAllMeetings,
   storeGladiaTranscription,
+  storeRecallTranscription,
   getTranscriptionByMeetingId
 }; 
