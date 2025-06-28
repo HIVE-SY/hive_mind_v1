@@ -5,7 +5,7 @@ import { supabase } from './config/supabase.js';
 import '../static/css/dark-theme.css';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://hive-mind-v1-api-259028418114.us-central1.run.app'
+  ? 'https://hive-mind-backend-259028418114.us-central1.run.app'
   : 'http://localhost:8000';
   
 export default function Dashboard() {
