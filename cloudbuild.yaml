@@ -2,9 +2,12 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
+      '--no-cache',
       '-t',
       'us-central1-docker.pkg.dev/$PROJECT_ID/hive-mind-repo/hive-mind-frontend:$SHORT_SHA',
       '--build-arg', 'VITE_API_BASE_URL=$_VITE_API_BASE_URL',
+      '--build-arg', 'VITE_SUPABASE_URL=$_VITE_SUPABASE_URL',
+      '--build-arg', 'VITE_SUPABASE_ANON_KEY=$_VITE_SUPABASE_ANON_KEY',
       '.'
     ]
     dir: 'frontend'

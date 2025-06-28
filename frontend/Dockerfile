@@ -21,6 +21,7 @@ ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 RUN echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" > .env.production \
     && echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" >> .env.production \
     && echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> .env.production
+    RUN cat .env.production
 # Build the app
 RUN npm run build
 
