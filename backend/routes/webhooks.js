@@ -6,6 +6,8 @@ import { fetchTranscript, getBot } from '../services/meetingBaas.js';
 
 const router = express.Router();
 
+
+
 // Verify Recall.ai webhook signature
 function verifyRecallSignature(payload, signature, secret) {
   if (!signature || !secret) {
@@ -31,13 +33,10 @@ function verifyRecallSignature(payload, signature, secret) {
 
 // Unified webhook endpoint
 router.post('/api/meetings/webhook/bot', express.raw({ type: '*/*' }), async (req, res) => {
-  console.log('Webhook received:', req.method, req.url, req.headers);
-  console.log('--- Incoming Webhook ---');
-  console.log('Headers:', req.headers);
-  console.log('Raw body:', req.body.toString('utf8'));
+  
   try {
     const bodyString = req.body.toString('utf8');
-    console.log('Webhook body:', bodyString);
+    //console.log('Webhook body:', bodyString);
     
     const svixSignature = req.get('svix-signature');
     const recallSignature = req.get('x-recall-signature');
@@ -84,7 +83,7 @@ router.post('/api/meetings/webhook/bot', express.raw({ type: '*/*' }), async (re
 // Handler for Recall.ai events
 async function handleRecallEvent(payload) {
   const { event, data } = payload;
-  console.log('Recall.ai event:', event, data);
+  console.log('Recall.ai event:', event);
   
   if (event === 'bot.waiting_room') {
     // Bot is waiting to join the meeting
@@ -230,54 +229,8 @@ async function handleRecallEvent(payload) {
     }
   } else {
     // Handle any other events
-    console.log(`Unhandled Recall.ai event: ${event}`, data);
+    console.log(`Unhandled Recall.ai event: ${event}`);
   }
-}
-
-// Save transcript to DB
-async function saveRecallTranscript({ botId, transcriptId, transcript, recordingId, meetingId }) {
-  // Look up user email from meetings table
-  let userEmail = null;
-  let meeting = null;
-  try {
-    meeting = await getMeetingData(botId);
-    userEmail = meeting?.contact_email || null;
-  } catch (err) {
-    console.error('Could not fetch meeting for user email:', err);
-  }
-  
-  if (!meeting) {
-    console.warn('Received Recall.ai webhook for unknown botId:', botId, 'Ignoring.');
-    return;
-  }
-  
-  // Parse transcript content (assuming it's JSON with utterances)
-  let utterances = [];
-  let fullTranscript = '';
-  
-  try {
-    if (typeof transcript === 'string') {
-      const parsed = JSON.parse(transcript);
-      utterances = parsed.utterances || [];
-      fullTranscript = parsed.text || parsed.transcript || '';
-    } else {
-      utterances = transcript.utterances || [];
-      fullTranscript = transcript.text || transcript.transcript || '';
-    }
-  } catch (error) {
-    console.error('Failed to parse transcript content:', error);
-    fullTranscript = typeof transcript === 'string' ? transcript : JSON.stringify(transcript);
-  }
-  
-  // Store in database using Recall.ai specific function
-  await storeRecallTranscription(
-    transcriptId,
-    botId,
-    fullTranscript,
-    userEmail,
-    utterances,
-    `recall-ai-${recordingId}`
-  );
 }
 
 // Handler for Gladia events (keeping for backward compatibility)

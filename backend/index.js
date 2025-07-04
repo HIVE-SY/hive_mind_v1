@@ -55,7 +55,7 @@ app.use((req, res, next) => {
   const originalSetHeader = res.setHeader;
   res.setHeader = function (name, value) {
     if (name.toLowerCase() === 'set-cookie') {
-      console.log('Set-Cookie Header:', value);
+      // console.log('Set-Cookie Header:', value);
     }
     return originalSetHeader.apply(this, arguments);
   };
@@ -73,8 +73,8 @@ app.get('/', (req, res) => {
 
 // Legacy session-based auth endpoint (for backward compatibility)
 app.get('/api/me', requireLogin, (req, res) => {
-  console.log('Session cookie:', req.headers.cookie);
-  console.log('Session:', req.session);
+  // console.log('Session cookie:', req.headers.cookie);
+  // console.log('Session:', req.session);
   if (req.session.user) {
     res.json(req.session.user);
   } else {

@@ -1,5 +1,5 @@
 import express from 'express';
-import { storeMeetingData, getMeetingData, storeTranscription, getTranscription, storeAnalysis, getAnalysis, getTranscriptionByMeetingId, getAllMeetings } from '../utils/database.js';
+import { storeMeetingData, getMeetingData, storeTranscription, getTranscription, getAnalysis, getTranscriptionByMeetingId, getAllMeetings } from '../utils/database.js';
 
 const router = express.Router();
 
@@ -82,24 +82,6 @@ router.get('/transcriptions/:transcriptionId', async (req, res) => {
   }
 });
 
-// Route to store analysis
-router.post('/analysis', async (req, res) => {
-  if (!req.user || !req.user.email) {
-    return res.status(401).json({ error: 'Not logged in' });
-  }
-  const { analysisId, transcriptionId, results } = req.body;
-  if (!analysisId || !transcriptionId || !results) {
-    return res.status(400).json({ error: 'Analysis ID, transcription ID, and results are required' });
-  }
-
-  try {
-    await storeAnalysis(analysisId, transcriptionId, results);
-    res.status(200).json({ message: 'Analysis stored successfully' });
-  } catch (error) {
-    console.error('Error storing analysis:', error);
-    res.status(500).json({ error: 'Failed to store analysis' });
-  }
-});
 
 // Route to get analysis
 router.get('/analysis/:analysisId', async (req, res) => {

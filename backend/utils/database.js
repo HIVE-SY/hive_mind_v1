@@ -18,7 +18,7 @@ async function storeMeetingData(meetingId, userId, userEmail, title, startTime, 
       contact_email: userEmail, // User's email address
       title: title,          // Meeting link or generated title
       start_time: startTime, // ISO string
-      end_time: endTime || startTime // Use startTime as default if endTime is null
+      end_time: endTime // Use startTime as default if endTime is null
     });
     if (error) {
       console.error('Error storing meeting data:', error);
@@ -88,30 +88,7 @@ async function getTranscription(transcriptionId) {
   }
 }
 
-/**
- * Store analysis in the database
- * @param {string} analysisId The ID of the analysis
- * @param {string} transcriptionId The ID of the transcription
- * @param {Object} results The analysis results
- */
-async function storeAnalysis(analysisId, transcriptionId, results) {
-  try {
-    const query = `
-      INSERT INTO analysis (id, transcription_id, results)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (id) DO UPDATE
-      SET results = $3
-    `;
-    await supabase.from('analysis').insert({
-      id: analysisId,
-      transcription_id: transcriptionId,
-      results: results
-    }).onConflict('id').merge();
-  } catch (error) {
-    console.error('Error storing analysis:', error);
-    throw error;
-  }
-}
+
 
 /**
  * Get analysis from the database
@@ -155,7 +132,7 @@ async function getAllMeetings(userEmail) {
     
     console.log('📊 Found meetings:', result.data?.length || 0);
     if (result.data && result.data.length > 0) {
-      console.log('📋 Sample meeting data:', JSON.stringify(result.data[0], null, 2));
+      // console.log('📋 Sample meeting data:', JSON.stringify(result.data[0], null, 2));
     }
     
     return result.data;
@@ -210,7 +187,7 @@ async function storeGladiaTranscription(gladiaTxId, botId, text, userEmail, utte
  */
 async function storeRecallTranscription(recallTxId, meetingId, text, utterances, audioUrl, createdAt, userEmail) {
   try {
-    const { error } = await supabase.from('transcriptions').insert({
+    const { error } = await supabase.from('transcriptions').upsert({
       recall_txt_id: recallTxId,      // Recall.ai transcript ID (text)
       meeting_id: meetingId,         // Bot ID (uuid)
       text: text,
@@ -252,7 +229,6 @@ export {
   getMeetingData,
   storeTranscription,
   getTranscription,
-  storeAnalysis,
   getAnalysis,
   getAllMeetings,
   storeGladiaTranscription,

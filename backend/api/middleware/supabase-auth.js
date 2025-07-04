@@ -17,7 +17,7 @@ const requireSupabaseAuth = async (req, res, next) => {
     // Try to decode the JWT for debugging
     try {
       const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-      console.log('🔍 JWT payload:', payload);
+      //console.log('🔍 JWT payload:', payload);
     } catch (e) {
       console.log('⚠️ Could not decode JWT payload');
     }

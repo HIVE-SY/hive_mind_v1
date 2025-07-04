@@ -2,9 +2,13 @@ import express from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import 'dotenv/config';
-import pool from '../../database/affine/db.js';
+import { supabase } from '../../config/supabase.js';
+import jwt from 'jsonwebtoken';
+import requireSupabaseAuth from '../middleware/supabase-auth.js';
 
 const router = express.Router();
+
+const FRONTEND_URL = process.env.FRONTEND_URL
 
 // Initialize OAuth2 client
 const oauth2Client = new OAuth2Client(
@@ -13,98 +17,96 @@ const oauth2Client = new OAuth2Client(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-// Store user tokens (in production, use a database)
-const userTokens = new Map();
-
 // Generate Google OAuth URL
-router.get('/connect', (req, res) => {
-  console.log('🔗 Generating Google OAuth URL...');
+router.get('/connect', async (req, res) => {
+  // Get the user's Supabase JWT from the Authorization header
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No authorization token provided' });
+  }
+  const jwtToken = authHeader.substring(7);
+
   const scopes = [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/calendar.events'
   ];
 
+  // Pass the JWT as the state parameter (it will be returned to the callback)
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
-    prompt: 'consent'
+    prompt: 'consent',
+    state: jwtToken
   });
 
-  console.log('✅ Generated auth URL:', authUrl);
   res.json({ authUrl });
 });
 
-// Handle OAuth callback
+// Handle OAuth callback (no requireSupabaseAuth)
 router.get('/callback', async (req, res) => {
-  const { code } = req.query;
-  
-  if (!code) {
-    console.error('❌ No code received in callback');
-    return res.redirect('/dashboard?error=no_code');
+  const { code, state } = req.query;
+  if (!code || !state) {
+    return res.redirect(`${FRONTEND_URL}/dashboard?error=no_code_or_state`);
   }
-  
   try {
+    // Decode the JWT from the state parameter
+    let userId = null;
+    try {
+      const decoded = jwt.decode(state);
+      userId = decoded?.sub || decoded?.user?.id || decoded?.id;
+    } catch (e) {
+      return res.redirect(`${FRONTEND_URL}/dashboard?error=invalid_state`);
+    }
+    if (!userId) {
+      return res.redirect(`${FRONTEND_URL}/dashboard?error=no_user`);
+    }
+
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // Get user from Supabase auth middleware
-    const userId = req.user?.id;
-    if (!userId) {
-      console.error('❌ No user ID found in request');
-      return res.redirect('/dashboard?error=no_user');
-    }
+    // Store tokens in Supabase
+    const { error } = await supabase
+      .from('google_tokens')
+      .upsert({
+        user_id: userId,
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        token_expiry: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+        connected: true
+      });
+    console.log('Upsert result:', error);
+    if (error) throw error;
 
-    // Store tokens in users table (by logged-in user)
-    const expiry = tokens.expiry_date ? new Date(tokens.expiry_date) : null;
-
-    await pool.query(
-      `UPDATE users SET 
-        google_access_token = $1,
-        google_refresh_token = $2,
-        google_token_expiry = $3,
-        google_connected = TRUE
-      WHERE id = $4`,
-      [tokens.access_token, tokens.refresh_token, expiry, userId]
-    );
-    
-
-    // Store tokens in memory for auto-join service
-    userTokens.set(userId, tokens);
-
-    // Redirect back to frontend dashboard
-    const frontendUrl = process.env.NODE_ENV === 'production'
-      ? process.env.FRONTEND_URL + '/dashboard'
-      : 'http://localhost:5173/dashboard';
-    res.redirect(frontendUrl);
+    // Redirect to frontend dashboard
+    res.redirect(`${FRONTEND_URL}/dashboard`);
   } catch (error) {
-    console.error('❌ Error getting tokens:', error);
-    res.redirect('/dashboard?error=auth_failed');
+    console.error('Google OAuth callback error:', error);
+    res.redirect(`${FRONTEND_URL}/dashboard?error=auth_failed`);
   }
 });
 
 // Check connection status
-router.get('/status', async (req, res) => {
+router.get('/status', requireSupabaseAuth, async (req, res) => {
+  
   const userId = req.user?.id;
+  
   if (!userId) {
-    console.log('🔍 Checking connection status: user not logged in');
     return res.json({ connected: false });
   }
-  console.log('🔍 Checking connection status for userId:', userId);
-
   try {
-    const dbRes = await pool.query(
-      `SELECT google_access_token, google_refresh_token, google_token_expiry, google_connected
-      FROM users WHERE id = $1`,
-      [userId]
-    );
-    const user = dbRes.rows[0];
-    if (user && user.google_access_token && user.google_refresh_token && user.google_connected) {
+    const { data, error } = await supabase
+      .from('google_tokens')
+      .select('access_token, refresh_token, connected')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error || !data) return res.json({ connected: false });
+    if (data.access_token && data.refresh_token && data.connected) {
       return res.json({ connected: true });
     } else {
       return res.json({ connected: false });
     }
   } catch (err) {
-    console.error('❌ Error checking Google connection status:', err);
     res.status(500).json({ connected: false, error: 'DB error' });
   }
 });
@@ -113,28 +115,21 @@ router.get('/status', async (req, res) => {
 router.post('/disconnect', async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
-    console.log('🔌 Disconnect failed: not logged in');
     return res.status(401).json({ success: false, error: 'Not logged in' });
   }
-  console.log('🔌 Disconnecting Google Calendar for userId:', userId);
-
   try {
-    await pool.query(
-      `UPDATE users SET
-        google_access_token = NULL,
-        google_refresh_token = NULL,
-        google_token_expiry = NULL,
-        google_connected = FALSE
-      WHERE id = $1`,
-      [userId]
-    );
-    
-    // Remove tokens from memory
-    userTokens.delete(userId);
-    
+    const { error } = await supabase
+      .from('google_tokens')
+      .update({
+        access_token: null,
+        refresh_token: null,
+        token_expiry: null,
+        connected: false
+      })
+      .eq('user_id', userId);
+    if (error) throw error;
     res.json({ success: true });
   } catch (err) {
-    console.error('❌ Error disconnecting Google:', err);
     res.status(500).json({ success: false, error: 'DB error' });
   }
 });
@@ -143,33 +138,24 @@ router.post('/disconnect', async (req, res) => {
 router.get('/events', async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
-    console.log('📅 Fetching calendar events: not logged in');
     return res.status(401).json({ error: 'Not logged in' });
   }
-  console.log('📅 Fetching calendar events for userId:', userId);
-
   try {
-    // Fetch tokens from DB
-    const dbRes = await pool.query(
-      `SELECT google_access_token, google_refresh_token FROM users WHERE id = $1`,
-      [userId]
-    );
-    const user = dbRes.rows[0];
-
-    if (!user || !user.google_access_token || !user.google_refresh_token) {
-      console.error('❌ No tokens found for user');
+    // Fetch tokens from Supabase
+    const { data, error } = await supabase
+      .from('google_tokens')
+      .select('access_token, refresh_token')
+      .eq('user_id', userId)
+      .single();
+    if (error || !data || !data.access_token || !data.refresh_token) {
       return res.status(401).json({ error: 'Not connected to Google Calendar' });
     }
-
     // Set tokens for API call
     oauth2Client.setCredentials({
-      access_token: user.google_access_token,
-      refresh_token: user.google_refresh_token
+      access_token: data.access_token,
+      refresh_token: data.refresh_token
     });
-
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-
-    console.log('🔍 Fetching events from calendar...');
     const response = await calendar.events.list({
       calendarId: 'primary',
       timeMin: new Date().toISOString(),
@@ -177,14 +163,10 @@ router.get('/events', async (req, res) => {
       singleEvents: true,
       orderBy: 'startTime'
     });
-
-    console.log(`✅ Found ${response.data.items.length} events`);
     res.json(response.data.items);
-
   } catch (error) {
-    console.error('❌ Error fetching calendar events:', error);
     res.status(500).json({ error: 'Failed to fetch calendar events' });
   }
 });
 
-export { router, userTokens }; 
+export { router }; 
