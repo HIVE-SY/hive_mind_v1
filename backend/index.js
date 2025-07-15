@@ -36,7 +36,7 @@ app.use(express.static(path.join(__dirname, 'static')));
  
 // Enable CORS for frontend dev server
 const allowedOrigins = process.env.NODE_ENV === 'production'
-  ? ['https://hive-mind-frontend-259028418114.us-central1.run.app']
+  ? ['https://app.thehive.is']
   : ['http://localhost:5173', 'http://localhost:8000'];
 app.use(cors({
   origin: function (origin, callback) {
