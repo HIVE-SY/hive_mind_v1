@@ -108,7 +108,7 @@ export default function Privacy() {
           <p>The Hive is an emergent system, and this covenant will evolve with it. As we move from Horizon 1 to Horizon 2, our collective understanding of privacy and data may deepen. Any significant changes to this policy will be communicated transparently, and where appropriate, decided upon by the collective.</p>
 
           <h2>How to Contact Us</h2>
-          <p>If you have questions, concerns, or ideas about this Privacy Covenant, please reach out to The Hive's Guardians. The Guardians are a rotating group of community members and builders tasked with developing safeguards against the concentration of power and ensuring the ecosystem operates according to its principles.</p>
+          <p>If you have questions, concerns, or ideas about this Privacy Covenant, please reach out to The Hive's Guardians. The Guardians are a rotating group of community members and builders tasked with developing safeguards against the concentration of power and ensuring the ecosystem operates according to its principles</p>
           
           <p><strong>info@thehive.is</strong></p>
 
