@@ -1,6 +1,9 @@
 import express from 'express';
 import { joinMeeting, retranscribeBot } from '../services/meetingBaas.js';
 import { storeMeetingData, getAllMeetings } from '../utils/database.js';
+import { supabase } from '../config/supabase.js';
+
+import { google } from 'googleapis';
 
 const router = express.Router();
 
@@ -96,6 +99,8 @@ router.get('/logs', (req, res) => {
   res.json({ logs });
 });
 
+
+
 // Add endpoint to fetch transcript/mp4 by botId
 router.get('/transcript', (req, res) => {
   const { botId } = req.query;
@@ -120,6 +125,100 @@ router.get('/conversations', async (req, res) => {
     res.json(meetings);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch meetings' });
+  }
+});
+
+// Get upcoming meetings for the current user
+router.get('/upcoming', async (req, res) => {
+  console.log('🔔 /api/meetings/upcoming route hit');
+  console.log('🔍 req.user:', req.user);
+  
+  if (!req.user || !req.user.email) {
+    console.log('❌ No user found in request');
+    return res.status(401).json({ error: 'Not logged in' });
+  }
+  
+  try {
+    const userId = req.user.id;
+    console.log('🔍 User ID:', userId);
+    
+    // Get user's Google tokens
+    console.log('🔍 Fetching Google tokens for user:', userId);
+    const { data: tokens, error: tokenError } = await supabase
+      .from('google_tokens')
+      .select('access_token, refresh_token')
+      .eq('user_id', userId)
+      .eq('connected', true)
+      .single();
+
+    if (tokenError || !tokens) {
+      console.log('❌ No Google tokens found:', tokenError);
+      return res.status(400).json({ error: 'Google Calendar not connected' });
+    }
+    
+    console.log('✅ Google tokens found');
+
+    // Set up OAuth2 client
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2Client.setCredentials({
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token
+    });
+
+    const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const now = new Date();
+
+    // Fetch upcoming events
+    const events = await calendar.events.list({
+      calendarId: 'primary',
+      timeMin: now.toISOString(),
+      maxResults: 10,
+      singleEvents: true,
+      orderBy: 'startTime'
+    });
+
+    const meetings = events.data.items || [];
+    
+    // Sort meetings by start time and filter for upcoming ones
+    const upcomingMeetings = meetings
+      .map(m => ({
+        ...m,
+        startTime: new Date(m.start.dateTime || m.start.date)
+      }))
+      .filter(m => m.startTime > now)
+      .sort((a, b) => a.startTime - b.startTime)
+      .slice(0, 5) // Limit to 5 meetings
+      .map(meeting => {
+        const start = new Date(meeting.start.dateTime || meeting.start.date);
+        const end = new Date(meeting.end.dateTime || meeting.end.date);
+        
+        // Get meeting link (prefer Google Meet link)
+        const meetLink = meeting.hangoutLink || 
+                        meeting.conferenceData?.entryPoints?.find(
+                          entry => entry.uri && entry.uri.includes('meet.google.com')
+                        )?.uri;
+
+        return {
+          id: meeting.id,
+          title: meeting.summary || 'Untitled Meeting',
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          timezone: start.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop(),
+          meetLink: meetLink,
+          htmlLink: meeting.htmlLink,
+          hasMeetLink: !!meetLink
+        };
+      });
+
+    console.log('✅ Returning meetings:', upcomingMeetings.length);
+    res.json({ meetings: upcomingMeetings });
+  } catch (error) {
+    console.error('❌ Error fetching upcoming meetings:', error);
+    res.status(500).json({ error: 'Failed to fetch upcoming meetings', details: error.message });
   }
 });
 

@@ -28,6 +28,13 @@ export default function Dashboard() {
   // Add a ref to store the polling interval
   const pollingRef = React.useRef(null);
 
+  // Upcoming meetings state
+  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
+  const [upcomingMeetingsLoading, setUpcomingMeetingsLoading] = useState(false);
+  const [upcomingMeetingsError, setUpcomingMeetingsError] = useState('');
+  const [upcomingMeetingsExpanded, setUpcomingMeetingsExpanded] = useState(true);
+  const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(true);
+
   // Check Supabase authentication
   useEffect(() => {
     const checkAuth = async () => {
@@ -55,6 +62,13 @@ export default function Dashboard() {
       checkGoogleAuthStatus();
     }
   }, [user]);
+
+  // Load upcoming meetings when Google is connected
+  useEffect(() => {
+    if (googleStatus === 'Connected') {
+      loadUpcomingMeetings();
+    }
+  }, [googleStatus]);
 
   const checkGoogleAuthStatus = async () => {
     try {
@@ -221,17 +235,96 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       if (!accessToken) return;
+
       const response = await fetch(`${API_BASE_URL}/api/meetings/conversations`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       });
+
       if (response.ok) {
         const data = await response.json();
-        setConversations(Array.isArray(data) ? data : []);
+        setConversations(data || []); // Backend returns meetings directly, not wrapped in conversations
+      } else {
+        console.error('Failed to load conversations');
       }
     } catch (error) {
-      setConversations([]);
+      console.error('Error loading conversations:', error);
+    }
+  };
+
+  const loadUpcomingMeetings = async () => {
+    try {
+      setUpcomingMeetingsLoading(true);
+      setUpcomingMeetingsError('');
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        setUpcomingMeetingsError('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/meetings/upcoming`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUpcomingMeetings(data.meetings || []);
+      } else {
+        const errorData = await response.json();
+        setUpcomingMeetingsError(errorData.error || 'Failed to load upcoming meetings');
+      }
+    } catch (error) {
+      console.error('Error loading upcoming meetings:', error);
+      setUpcomingMeetingsError('Failed to load upcoming meetings');
+    } finally {
+      setUpcomingMeetingsLoading(false);
+    }
+  };
+
+  // Helper functions for upcoming meetings
+  const formatMeetingTime = (startTime, endTime, timezone) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    
+    const startFormatted = start.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+    
+    const startTimeFormatted = start.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    const endTimeFormatted = end.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    
+    return `${startFormatted} – ${startTimeFormatted} - ${endTimeFormatted} ${timezone}`;
+  };
+
+  const isMeetingStartingSoon = (startTime) => {
+    const now = new Date();
+    const meetingStart = new Date(startTime);
+    const timeDiff = meetingStart - now;
+    return timeDiff > 0 && timeDiff <= 30 * 60 * 1000; // Within 30 minutes
+  };
+
+  const copyMeetingLink = async (link) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      // You could add a toast notification here
+    } catch (error) {
+      console.error('Failed to copy link:', error);
     }
   };
 
@@ -384,22 +477,148 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* UPCOMING MEETINGS */}
+        {googleStatus === 'Connected' && (
+          <section className="upcoming-meetings-section">
+            <div className="section-header">
+              <h2>Upcoming Meetings</h2>
+              <div className="header-actions">
+                <button 
+                  className="btn-refresh" 
+                  onClick={loadUpcomingMeetings}
+                  disabled={upcomingMeetingsLoading}
+                >
+                  <i className={`bi bi-arrow-clockwise ${upcomingMeetingsLoading ? 'spin' : ''}`}></i> 
+                  {upcomingMeetingsLoading ? 'Loading...' : 'Refresh'}
+                </button>
+                <button 
+                  className="btn-toggle"
+                  onClick={() => setUpcomingMeetingsExpanded(!upcomingMeetingsExpanded)}
+                >
+                  <i className={`bi bi-chevron-${upcomingMeetingsExpanded ? 'up' : 'down'}`}></i>
+                </button>
+              </div>
+            </div>
+            
+            {upcomingMeetingsExpanded && (
+              <>
+                {upcomingMeetingsError && (
+                  <div className="alert alert-error">
+                    <i className="bi bi-exclamation-circle"></i>
+                    {upcomingMeetingsError}
+                  </div>
+                )}
+                
+                {upcomingMeetings.length === 0 && !upcomingMeetingsLoading ? (
+                  <div className="empty-state">
+                    <i className="bi bi-calendar-x"></i>
+                    <p>No upcoming meetings found.</p>
+                    <small>Meetings with Google Meet links will appear here</small>
+                  </div>
+                                          ) : (
+                            <div className="upcoming-meetings-table-container">
+                              <table className="upcoming-meetings-table">
+                                <thead>
+                                  <tr>
+                                    <th>Meeting Name</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Link</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {upcomingMeetings.map(meeting => (
+                                    <tr key={meeting.id} className={isMeetingStartingSoon(meeting.startTime) ? 'meeting-soon' : ''}>
+                                      <td className="meeting-name">
+                                        <strong>{meeting.title}</strong>
+                                        {isMeetingStartingSoon(meeting.startTime) && (
+                                          <span className="badge badge-warning">
+                                            <i className="bi bi-clock"></i> Soon!
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="meeting-start">
+                                        {new Date(meeting.startTime).toLocaleString('en-US', {
+                                          weekday: 'short',
+                                          month: 'short',
+                                          day: 'numeric',
+                                          hour: 'numeric',
+                                          minute: '2-digit',
+                                          hour12: true
+                                        })}
+                                      </td>
+                                      <td className="meeting-end">
+                                        {new Date(meeting.endTime).toLocaleTimeString('en-US', {
+                                          hour: 'numeric',
+                                          minute: '2-digit',
+                                          hour12: true
+                                        })}
+                                      </td>
+                                      <td className="meeting-link">
+                                        {meeting.meetLink ? (
+                                          <div className="link-actions">
+                                            <a 
+                                              href={meeting.meetLink} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="btn-meet-link"
+                                            >
+                                              <i className="bi bi-camera-video"></i> Join
+                                            </a>
+                                            <button 
+                                              className="btn-copy"
+                                              onClick={() => copyMeetingLink(meeting.meetLink)}
+                                              title="Copy meeting link"
+                                            >
+                                              <i className="bi bi-clipboard"></i>
+                                            </button>
+                                            <span className="bot-status">
+                                              <i className="bi bi-robot"></i> Auto-join
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <span className="no-meet-link">
+                                            <i className="bi bi-calendar-event"></i> No link
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+              </>
+            )}
+          </section>
+        )}
+
         {/* RECENT CONVERSATIONS */}
         <section className="conversations-section">
           <div className="section-header">
-            <h2>Recent Meetings.</h2>
-            <button className="btn-refresh" onClick={loadConversations}>
-              <i className="bi bi-arrow-clockwise"></i> Refresh
-            </button>
-          </div>
-          {conversations.length === 0 ? (
-            <div className="empty-state">
-              <i className="bi bi-chat-square-text"></i>
-              <p>No meetings found</p>
-              <small>Your meeting data will appear here</small>
+            <h2>Recent Meetings</h2>
+            <div className="header-actions">
+              <button className="btn-refresh" onClick={loadConversations}>
+                <i className="bi bi-arrow-clockwise"></i> Refresh
+              </button>
+              <button
+                className="btn-toggle"
+                onClick={() => setRecentMeetingsExpanded(!recentMeetingsExpanded)}
+              >
+                <i className={`bi bi-chevron-${recentMeetingsExpanded ? 'up' : 'down'}`}></i>
+              </button>
             </div>
-          ) : (
-            <div className="conversations-list">
+          </div>
+          {recentMeetingsExpanded && (
+            <>
+              {conversations.length === 0 ? (
+                <div className="empty-state">
+                  <i className="bi bi-chat-square-text"></i>
+                  <p>No meetings found</p>
+                  <small>Your meeting data will appear here</small>
+                </div>
+              ) : (
+                <div className="conversations-list">
               {conversations.map(convo => {
                 const id = convo.botId || convo.id;
                 const isExpanded = expandedId === id;
@@ -527,6 +746,8 @@ export default function Dashboard() {
                 );
               })}
             </div>
+          )}
+            </>
           )}
         </section>
       </main>

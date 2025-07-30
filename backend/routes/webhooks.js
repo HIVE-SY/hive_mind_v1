@@ -85,7 +85,7 @@ async function handleRecallEvent(payload) {
   const { event, data } = payload;
   console.log('Recall.ai event:', event);
   
-  if (event === 'bot.waiting_room') {
+  if (event === 'bot.in_waiting_room') {
     // Bot is waiting to join the meeting
     const { bot } = data;
     console.log(`Bot ${bot.id} is in waiting room`);
@@ -106,6 +106,23 @@ async function handleRecallEvent(payload) {
     // Bot has joined and started recording
     const { bot } = data;
     console.log(`Bot ${bot.id} has joined and started recording`);
+    
+    // Update meeting status to indicate bot is in call
+    global.meetingStatus = global.meetingStatus || new Map();
+    for (const [joinId, status] of global.meetingStatus.entries()) {
+      if (status.botId === bot.id) {
+        global.meetingStatus.set(joinId, { 
+          ...status, 
+          status: 'in_call_recording',
+          message: 'Bot joined the meeting and started recording!'
+        });
+        break;
+      }
+    }
+  } else if (event === 'bot.joined_meeting') {
+    // Bot has joined the meeting (alternative event name)
+    const { bot } = data;
+    console.log(`Bot ${bot.id} has joined the meeting`);
     
     // Update meeting status to indicate bot is in call
     global.meetingStatus = global.meetingStatus || new Map();

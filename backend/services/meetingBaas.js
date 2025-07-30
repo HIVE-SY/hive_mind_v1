@@ -14,12 +14,18 @@ const headers = {
 
 export async function joinMeeting(meetingUrl) {
   try {
-    // Create a bot with AssemblyAI transcription
+    // Get the webhook URL from environment or use a default
+    const webhookUrl = process.env.WEBHOOK_URL || 'https://hive-mind-backend-259028418114.us-central1.run.app/api/meetings/webhook/bot';
+    
+    console.log('🔗 Using webhook URL:', webhookUrl);
+    
+    // Create a bot with AssemblyAI transcription and webhook
     const response = await axios.post(
       `${baseUrl}/bot/`,
       {
         meeting_url: meetingUrl,
         bot_name: "Hive Mind AI",
+        webhook_url: webhookUrl,
         recording_config: {
           transcript: {
             provider: {
@@ -33,6 +39,7 @@ export async function joinMeeting(meetingUrl) {
       { headers }
     );
 
+    console.log('✅ Bot created successfully:', response.data.id);
     return { success: true, botId: response.data.id };
   } catch (error) {
     console.error('❌ Failed to join meeting:', error.response?.data || error.message);

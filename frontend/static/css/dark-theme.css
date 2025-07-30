@@ -974,3 +974,205 @@ small:not(.badge):not(.speaker-badge):not(.text-muted) {
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* Upcoming Meetings Section */
+.upcoming-meetings-section {
+  margin: 2rem 0;
+}
+
+.upcoming-meetings-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.upcoming-meetings-section .header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.upcoming-meetings-section .btn-toggle,
+.conversations-section .btn-toggle {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: var(--transition-smooth);
+}
+
+.upcoming-meetings-section .btn-toggle:hover,
+.conversations-section .btn-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-color);
+}
+
+/* Upcoming Meetings Table */
+.upcoming-meetings-table-container {
+  overflow-x: auto;
+}
+
+.upcoming-meetings-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--panel-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.upcoming-meetings-table th {
+  background: var(--card-bg);
+  color: var(--text-color);
+  font-weight: 600;
+  text-align: left;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.upcoming-meetings-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.upcoming-meetings-table tr:last-child td {
+  border-bottom: none;
+}
+
+.upcoming-meetings-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.meeting-soon {
+  background: rgba(255, 193, 7, 0.05) !important;
+  border-left: 3px solid #ffc107;
+}
+
+.meeting-soon:hover {
+  background: rgba(255, 193, 7, 0.08) !important;
+}
+
+.meeting-name {
+  font-weight: 500;
+  color: var(--text-color);
+  min-width: 200px;
+}
+
+.meeting-name strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.meeting-start,
+.meeting-end {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  min-width: 120px;
+}
+
+.meeting-link {
+  min-width: 150px;
+}
+
+.link-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-meet-link {
+  background: var(--teal-accent);
+  color: var(--dark-bg);
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: var(--transition-smooth);
+}
+
+.btn-meet-link:hover {
+  background: var(--teal-dark);
+  transform: translateY(-1px);
+}
+
+.btn-copy {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  font-size: 0.8rem;
+}
+
+.btn-copy:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-color);
+}
+
+.bot-status {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--teal-accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.no-meet-link {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.badge {
+  padding: 0.2rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.badge-warning {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+/* Responsive design for upcoming meetings */
+@media (max-width: 768px) {
+  .upcoming-meetings-section .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .meeting-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .meeting-item {
+    padding: 1rem;
+  }
+}
