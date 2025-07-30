@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api/auth/google': {
+        target: 'https://hive-mind-backend-259028418114.us-central1.run.app',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/api\/auth\/google/, '/api/auth/google'),
+      },
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
