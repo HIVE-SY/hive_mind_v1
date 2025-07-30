@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [upcomingMeetingsError, setUpcomingMeetingsError] = useState('');
   const [upcomingMeetingsExpanded, setUpcomingMeetingsExpanded] = useState(true);
   const [recentMeetingsExpanded, setRecentMeetingsExpanded] = useState(true);
+  const [disconnectSuccessMsg, setDisconnectSuccessMsg] = useState('');
 
   // Check Supabase authentication
   useEffect(() => {
@@ -113,14 +114,32 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       if (!accessToken) return;
-      await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { 
+      const response = await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { 
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       });
-      setGoogleStatus('Not Connected');
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setGoogleStatus('Not Connected');
+          // Clear upcoming meetings when disconnected
+          setUpcomingMeetings([]);
+          // Refresh status to ensure UI is in sync
+          await checkGoogleAuthStatus();
+          setDisconnectSuccessMsg('Successfully disconnected from Google Calendar. Your access has been revoked.');
+          // Clear the message after 5 seconds
+          setTimeout(() => setDisconnectSuccessMsg(''), 5000);
+        } else {
+          alert('Failed to disconnect from Google Calendar');
+        }
+      } else {
+        alert('Error disconnecting from Google Calendar');
+      }
     } catch (error) {
+      console.error('Disconnect error:', error);
       alert('Error disconnecting from Google Calendar');
     }
   };
@@ -257,6 +276,13 @@ export default function Dashboard() {
     try {
       setUpcomingMeetingsLoading(true);
       setUpcomingMeetingsError('');
+      
+      // Check if user is connected to Google before loading meetings
+      if (googleStatus !== 'Connected') {
+        setUpcomingMeetings([]);
+        setUpcomingMeetingsError('Not connected to Google Calendar');
+        return;
+      }
       
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
@@ -395,6 +421,12 @@ export default function Dashboard() {
                 >
                   <i className="bi bi-plug"></i> Disconnect
                 </button>
+              )}
+              {disconnectSuccessMsg && (
+                <div className="alert alert-success" style={{ marginTop: '1em' }}>
+                  <i className="bi bi-check-circle"></i>
+                  {disconnectSuccessMsg}
+                </div>
               )}
             </div>
           </div>

@@ -101,9 +101,34 @@ router.get('/status', requireSupabaseAuth, async (req, res) => {
       .single();
     
     if (error || !data) return res.json({ connected: false });
-    if (data.access_token && data.refresh_token && data.connected) {
+    if (!data.access_token || !data.refresh_token || !data.connected) {
+      return res.json({ connected: false });
+    }
+
+    // Validate tokens with Google API
+    try {
+      oauth2Client.setCredentials({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token
+      });
+      
+      const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+      await calendar.calendarList.list({ maxResults: 1 });
+      
       return res.json({ connected: true });
-    } else {
+    } catch (googleError) {
+      // If Google API call fails, tokens are invalid - update DB and return disconnected
+      console.log('Google API validation failed, updating connection status');
+      await supabase
+        .from('google_tokens')
+        .update({
+          access_token: null,
+          refresh_token: null,
+          token_expiry: null,
+          connected: false
+        })
+        .eq('user_id', userId);
+      
       return res.json({ connected: false });
     }
   } catch (err) {
@@ -112,12 +137,37 @@ router.get('/status', requireSupabaseAuth, async (req, res) => {
 });
 
 // Disconnect Google Calendar
-router.post('/disconnect', async (req, res) => {
+router.post('/disconnect', requireSupabaseAuth, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ success: false, error: 'Not logged in' });
   }
   try {
+    // First, get the current tokens to revoke them with Google
+    const { data: currentTokens, error: fetchError } = await supabase
+      .from('google_tokens')
+      .select('access_token, refresh_token')
+      .eq('user_id', userId)
+      .single();
+    
+    // Revoke tokens with Google if we have them
+    if (currentTokens && currentTokens.access_token) {
+      try {
+        oauth2Client.setCredentials({
+          access_token: currentTokens.access_token,
+          refresh_token: currentTokens.refresh_token
+        });
+        
+        // Revoke the tokens with Google
+        await oauth2Client.revokeCredentials();
+        console.log('Successfully revoked Google tokens for user:', userId);
+      } catch (revokeError) {
+        console.log('Failed to revoke Google tokens (they may already be invalid):', revokeError.message);
+        // Continue with local cleanup even if Google revocation fails
+      }
+    }
+    
+    // Clean up our database
     const { error } = await supabase
       .from('google_tokens')
       .update({
@@ -128,14 +178,16 @@ router.post('/disconnect', async (req, res) => {
       })
       .eq('user_id', userId);
     if (error) throw error;
+    
     res.json({ success: true });
   } catch (err) {
+    console.error('Disconnect error:', err);
     res.status(500).json({ success: false, error: 'DB error' });
   }
 });
 
 // Get user's calendar events
-router.get('/events', async (req, res) => {
+router.get('/events', requireSupabaseAuth, async (req, res) => {
   const userId = req.user?.id;
   if (!userId) {
     return res.status(401).json({ error: 'Not logged in' });
