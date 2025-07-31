@@ -10,16 +10,13 @@ RUN npm ci
 # Copy everything else (after .dockerignore has excluded junk)
 COPY . .
 
-# Set build-time environment variable
-ARG VITE_API_BASE_URL
+# Set build-time environment variables
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 
-RUN echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" > .env.production \
-    && echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" >> .env.production \
+RUN echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" > .env.production \
     && echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> .env.production
     RUN cat .env.production
 # Build the app
