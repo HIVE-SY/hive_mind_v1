@@ -28,13 +28,7 @@ app.set('trust proxy', 1);
 
 const PORT = process.env.PORT || 8000;
 
-// Middleware
-app.use(cookieParser());
-app.use(webhooksRouter);
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'static')));
- 
-// Enable CORS for frontend dev server
+// Enable CORS for frontend - must be first middleware
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? ['https://app.thehive.is']
   : ['http://localhost:5173', 'http://localhost:8000'];
@@ -46,8 +40,16 @@ app.use(cors({
       callback(new Error(`CORS error: Not allowed by CORS for origin ${origin}`));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Other middleware
+app.use(cookieParser());
+app.use(webhooksRouter);
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'static')));
 
 
 
