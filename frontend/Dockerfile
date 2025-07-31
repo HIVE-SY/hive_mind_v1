@@ -25,8 +25,8 @@ RUN npm run build
 # Production stage
 FROM nginx:stable-alpine
 
-# Copy custom nginx config (make sure it exists)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy custom nginx config as the main config
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built files from previous stage
 COPY --from=build /app/dist /usr/share/nginx/html
@@ -36,6 +36,10 @@ RUN adduser -D -H -u 101 -s /sbin/nologin nginx || true
 
 # Permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html
+
+# Debug: Show nginx configuration and validate it
+RUN echo "=== NGINX CONFIGURATION ===" && cat /etc/nginx/nginx.conf
+RUN nginx -t
 
 # USER nginx
 EXPOSE 8080
