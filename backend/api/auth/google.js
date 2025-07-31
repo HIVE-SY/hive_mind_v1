@@ -27,8 +27,7 @@ router.get('/connect', async (req, res) => {
   const jwtToken = authHeader.substring(7);
 
   const scopes = [
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/calendar.events'
+    'https://www.googleapis.com/auth/calendar.readonly'
   ];
 
   // Pass the JWT as the state parameter (it will be returned to the callback)
