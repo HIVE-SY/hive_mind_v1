@@ -22,5 +22,6 @@ steps:
       '--region', 'us-central1',
       '--platform', 'managed',
       '--allow-unauthenticated',
-      '--port', '8000'
+      '--port', '8000',
+      '--set-env-vars', 'NODE_ENV=production'
     ]

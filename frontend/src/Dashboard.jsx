@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from './config/supabase.js';
 import '../static/css/dark-theme.css';
 
-
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://api.thehive.is'
+  : '';
   
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -74,7 +76,7 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       if (!accessToken) return;
-      const response = await fetch('/api/auth/google/status', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/google/status`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -94,7 +96,7 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       if (!accessToken) return;
-      const res = await fetch('/api/auth/google/connect', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/google/connect`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -112,7 +114,7 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       if (!accessToken) return;
-      const response = await fetch('/api/auth/google/disconnect', { 
+      const response = await fetch(`${API_BASE_URL}/api/auth/google/disconnect`, { 
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`
@@ -187,7 +189,7 @@ export default function Dashboard() {
       const { data: { session } } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
       if (!accessToken) return;
-      const response = await fetch('/api/meetings/join', {
+      const response = await fetch(`${API_BASE_URL}/api/meetings/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify({ meetingLink })
@@ -204,7 +206,7 @@ export default function Dashboard() {
             const accessToken = session?.access_token;
             if (!accessToken) return;
             const statusRes = await fetch(
-              `/api/meetings/status?botId=${data.botId}`,
+              `${API_BASE_URL}/api/meetings/status?botId=${data.botId}`,
               {
                 headers: { 'Authorization': `Bearer ${accessToken}` }
               }
@@ -253,7 +255,7 @@ export default function Dashboard() {
       const accessToken = session?.access_token;
       if (!accessToken) return;
 
-      const response = await fetch('/api/meetings/conversations', {
+      const response = await fetch(`${API_BASE_URL}/api/meetings/conversations`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
@@ -289,7 +291,7 @@ export default function Dashboard() {
         return;
       }
 
-      const response = await fetch('/api/meetings/upcoming', {
+      const response = await fetch(`${API_BASE_URL}/api/meetings/upcoming`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`
         }
